@@ -18,6 +18,7 @@ PROBLEMS = {p["id"]: p for p in json.loads((CONTENT / "problems.json").read_text
 MISC = json.loads((CONTENT / "misconceptions.json").read_text(encoding="utf-8"))
 META = json.loads((CONTENT / "problem_meta.json").read_text(encoding="utf-8"))  # difficulty + real-life framing per problem
 GLOSSARY = json.loads((CONTENT / "glossary.json").read_text(encoding="utf-8"))["terms"]
+PROBES = {p["id"]: p for p in json.loads((CONTENT / "probes.json").read_text(encoding="utf-8"))["probes"]}  # verified by content/verify_probes.py
 SVC: Optional[DiagnoserService] = None
 MAX_CODE_CHARS = 20000  # longer submissions are rejected with 422
 CLEAR_THRESHOLD = 0.25  # model must give the target misconception < 25% probability to count as "no longer detected"
@@ -412,3 +413,37 @@ def learner_patterns(learner_id: str):
 def glossary():
     """Plain-language definitions for the tooltips in the client."""
     return GLOSSARY
+
+
+@app.get("/probe/{a}/{b}")
+def probe(a: str, b: str, learner_id: Optional[str] = None):
+    """A quick predict-the-output question that tells two look-alike (twin) mistakes apart. Answers stay on the server."""
+    pair = {full_label(a), full_label(b)}
+    items = [p for p in PROBES.values() if set(p["pair"]) == pair]
+    if not items:
+        raise HTTPException(404, f"No twin probe for {sorted(x.split('_')[0] for x in pair)}; twins are M1/M2 and M4/M5.")
+    p = items[db.probes_seen(learner_id) % len(items)]  # rotate, so a learner does not get the same question twice in a row
+    return dict(probe_id=p["id"], pair=p["pair"], question=p["question"], code=p["code"], options=[o["text"] for o in p["options"]])
+
+
+class ProbeAnswerIn(BaseModel):
+    probe_id: str
+    choice: int
+    learner_id: Optional[str] = None
+    problem_id: Optional[str] = None
+
+
+@app.post("/probe/answer")
+def probe_answer(body: ProbeAnswerIn):
+    p = PROBES.get(body.probe_id)
+    if p is None:
+        raise HTTPException(404, f"Unknown probe '{body.probe_id}'")
+    if not 0 <= body.choice < len(p["options"]):
+        raise HTTPException(422, f"choice must be 0..{len(p['options']) - 1}")
+    o = p["options"][body.choice]
+    correct = not o["implies"]
+    suggested = o["implies"][0] if len(o["implies"]) == 1 else None  # one twin revealed -> teach that one
+    db.log_probe(body.learner_id, body.problem_id, p["id"], body.choice, correct, o["implies"])
+    right = next(x["text"] for x in p["options"] if not x["implies"])
+    return dict(probe_id=p["id"], correct=correct, implies=o["implies"], suggested_label=suggested, answer=right,
+                explanation=p["explanation"], names={l: MISC[l]["name"] for l in o["implies"]})

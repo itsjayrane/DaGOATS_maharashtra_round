@@ -49,6 +49,10 @@ export const PLAIN = {
   M8_LIST_ALIASING: 'Two names for one list',
   OTHER_BUG: 'A different kind of bug',
 }
+export const TWIN_OF = {
+  M1_RANGE_OFF_BY_ONE: 'M2_INDEX_FROM_ONE', M2_INDEX_FROM_ONE: 'M1_RANGE_OFF_BY_ONE',
+  M4_ACCUMULATOR_RESET: 'M5_RETURN_IN_LOOP', M5_RETURN_IN_LOOP: 'M4_ACCUMULATOR_RESET',
+}
 export const plain = (l) => PLAIN[l] || PLAIN[MISC.find((x) => x[1] === l)?.[0]] || l
 
 export const DIFFICULTY = { easy: ['Easy', 'good', 0], medium: ['Medium', 'info', 1], harder: ['Harder', 'warn', 2] }

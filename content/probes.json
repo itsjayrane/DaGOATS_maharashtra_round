@@ -1,0 +1,77 @@
+{
+  "_about": "Twin probes: a quick predict-the-output question that tells two look-alike mistakes apart. Each wrong option names the belief(s) it reveals. Verified by content/verify_probes.py (the keyed answer is the real output).",
+  "probes": [
+    {
+      "id": "m1m2-1", "pair": ["M1_RANGE_OFF_BY_ONE", "M2_INDEX_FROM_ONE"],
+      "question": "What does this print?",
+      "code": "nums = [10, 20, 30]\nprint(nums[1], list(range(1, 3)))",
+      "options": [
+        {"text": "20 [1, 2]", "implies": []},
+        {"text": "10 [1, 2]", "implies": ["M2_INDEX_FROM_ONE"]},
+        {"text": "20 [1, 2, 3]", "implies": ["M1_RANGE_OFF_BY_ONE"]},
+        {"text": "10 [1, 2, 3]", "implies": ["M1_RANGE_OFF_BY_ONE", "M2_INDEX_FROM_ONE"]}
+      ],
+      "explanation": "nums[1] is the SECOND item (positions start at 0), and range(1, 3) stops before 3."
+    },
+    {
+      "id": "m1m2-2", "pair": ["M1_RANGE_OFF_BY_ONE", "M2_INDEX_FROM_ONE"],
+      "question": "What does this print?",
+      "code": "word = 'cat'\nprint(word[len(word) - 1], len(range(0, 3)))",
+      "options": [
+        {"text": "t 3", "implies": []},
+        {"text": "a 3", "implies": ["M2_INDEX_FROM_ONE"]},
+        {"text": "t 4", "implies": ["M1_RANGE_OFF_BY_ONE"]},
+        {"text": "a 4", "implies": ["M1_RANGE_OFF_BY_ONE", "M2_INDEX_FROM_ONE"]}
+      ],
+      "explanation": "The last position is len(word) - 1, so word[2] is 't'. range(0, 3) is 0, 1, 2 - three numbers."
+    },
+    {
+      "id": "m1m2-3", "pair": ["M1_RANGE_OFF_BY_ONE", "M2_INDEX_FROM_ONE"],
+      "question": "What does this print?",
+      "code": "xs = [5, 6, 7, 8]\nfor i in range(1, 3):\n    print(xs[i], end=' ')",
+      "options": [
+        {"text": "6 7", "implies": []},
+        {"text": "5 6", "implies": ["M2_INDEX_FROM_ONE"]},
+        {"text": "6 7 8", "implies": ["M1_RANGE_OFF_BY_ONE"]},
+        {"text": "5 6 7", "implies": ["M1_RANGE_OFF_BY_ONE", "M2_INDEX_FROM_ONE"]}
+      ],
+      "explanation": "i takes 1 and 2 (range stops before 3), and xs[1] is 6 because positions start at 0."
+    },
+    {
+      "id": "m4m5-1", "pair": ["M4_ACCUMULATOR_RESET", "M5_RETURN_IN_LOOP"],
+      "question": "What does this print?",
+      "code": "def f(nums):\n    for x in nums:\n        t = 0\n        t = t + x\n    return t\n\ndef g(nums):\n    t = 0\n    for x in nums:\n        t = t + x\n        return t\n\nprint(f([4, 5, 6]), g([4, 5, 6]))",
+      "options": [
+        {"text": "6 4", "implies": []},
+        {"text": "15 4", "implies": ["M4_ACCUMULATOR_RESET"]},
+        {"text": "6 15", "implies": ["M5_RETURN_IN_LOOP"]},
+        {"text": "15 15", "implies": ["M4_ACCUMULATOR_RESET", "M5_RETURN_IN_LOOP"]}
+      ],
+      "explanation": "f sets t back to 0 on every pass, so only the last item (6) survives. g returns during the first pass, so it gives 4."
+    },
+    {
+      "id": "m4m5-2", "pair": ["M4_ACCUMULATOR_RESET", "M5_RETURN_IN_LOOP"],
+      "question": "What does this print?",
+      "code": "def count_a(s):\n    for ch in s:\n        n = 0\n        if ch == 'a':\n            n += 1\n    return n\n\ndef has_a(s):\n    for ch in s:\n        if ch == 'a':\n            return True\n        return False\n\nprint(count_a('banana'), has_a('banana'))",
+      "options": [
+        {"text": "1 False", "implies": []},
+        {"text": "3 False", "implies": ["M4_ACCUMULATOR_RESET"]},
+        {"text": "1 True", "implies": ["M5_RETURN_IN_LOOP"]},
+        {"text": "3 True", "implies": ["M4_ACCUMULATOR_RESET", "M5_RETURN_IN_LOOP"]}
+      ],
+      "explanation": "count_a resets n on every letter, so only the last 'a' counts (1). has_a looks at 'b' first and returns False straight away."
+    },
+    {
+      "id": "m4m5-3", "pair": ["M4_ACCUMULATOR_RESET", "M5_RETURN_IN_LOOP"],
+      "question": "What does this print?",
+      "code": "def biggest(nums):\n    for x in nums:\n        best = nums[0]\n        if x > best:\n            best = x\n    return best\n\ndef first_even(nums):\n    for x in nums:\n        if x % 2 == 0:\n            return x\n        return None\n\nprint(biggest([3, 9, 2]), first_even([3, 4]))",
+      "options": [
+        {"text": "3 None", "implies": []},
+        {"text": "9 None", "implies": ["M4_ACCUMULATOR_RESET"]},
+        {"text": "3 4", "implies": ["M5_RETURN_IN_LOOP"]},
+        {"text": "9 4", "implies": ["M4_ACCUMULATOR_RESET", "M5_RETURN_IN_LOOP"]}
+      ],
+      "explanation": "biggest sets best back to 3 on every pass, so the 9 is forgotten. first_even returns None on the first pass (3 is odd) and never reaches 4."
+    }
+  ]
+}

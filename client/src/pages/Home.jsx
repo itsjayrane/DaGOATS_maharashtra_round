@@ -7,12 +7,15 @@ import ExplainPanel from '../components/ExplainPanel'
 import HintPanel, { MAX_HINTS } from '../components/HintPanel'
 import InterventionPanel from '../components/InterventionPanel'
 import Onboarding from '../components/Onboarding'
+import QuickCheck from '../components/QuickCheck'
 import StepIndicator from '../components/StepIndicator'
 import TransferPanel from '../components/TransferPanel'
 import { useServerHealth } from '../serverHealth'
 import { flag, setFlag } from '../theme'
 import { Button, Card, ErrorNote, Pill, RichText } from '../components/ui'
-import { byDifficulty, DEMOS, DIFFICULTY, py } from '../labels'
+import { byDifficulty, DEMOS, DIFFICULTY, py, TWIN_OF } from '../labels'
+
+const TWIN_PROBE_MIN = 0.2 // ask the twin probe when the look-alike mistake has at least this probability
 
 function DifficultyPill({ p }) {
   if (p?.custom) return <Pill tone="info">{p.badge}</Pill>
@@ -41,6 +44,7 @@ export default function Home() {
   const [hintNote, setHintNote] = useState('')
   const [solved, setSolved] = useState([])
   const [suggested, setSuggested] = useState(null) // from GET /learner/{id}/patterns
+  const [override, setOverride] = useState(null) // twin chosen by the Quick check answer
   const pidRef = useRef(pid)
   const diagRef = useRef(null)
   const proveRef = useRef(null)
@@ -70,7 +74,7 @@ export default function Home() {
   const recommended = problems.find((p) => p.id === suggested?.problem_id && p.id !== pid)
     || problems.find((p) => !solved.includes(p.id) && p.id !== pid && !p.custom)
   const resetHints = () => { setHints([]); setHintError(''); setHintNote('') }
-  const reset = () => { setDiag(null); setProving(false); setError('') }
+  const reset = () => { setDiag(null); setProving(false); setError(''); setOverride(null) }
 
   const pick = (id) => {
     const p = problems.find((x) => x.id === id)
@@ -99,7 +103,7 @@ export default function Home() {
   }
 
   const submit = async () => {
-    setBusy(true); setError(''); setProving(false)
+    setBusy(true); setError(''); setProving(false); setOverride(null)
     try {
       const d = await api.diagnose({ problem_id: pid, code, learner_id: lid })
       setSubmitted({ pid, code, n: Date.now() })
@@ -113,7 +117,10 @@ export default function Home() {
   }
 
   // only a confident misconception gets a lesson; an unknown bug gets a step-by-step explanation instead
-  const misconception = diag?.verdict ? (diag.verdict === 'misconception' ? diag.label : null) : (diag?.label && diag.label !== 'CORRECT' ? diag.label : null)
+  const diagnosed = diag?.verdict ? (diag.verdict === 'misconception' ? diag.label : null) : (diag?.label && diag.label !== 'CORRECT' ? diag.label : null)
+  const misconception = override || diagnosed
+  // two look-alike mistakes are close: ask one twin probe question before teaching
+  const twinClose = diagnosed && diag.runner_up && TWIN_OF[diagnosed] === diag.runner_up.label && (diag.ambiguous || diag.runner_up.probability >= TWIN_PROBE_MIN)
   const unknownBug = diag?.verdict === 'unknown' && diag?.status === 'ok' && diag?.label
   const correct = diag && (diag.verdict ? diag.verdict === 'correct' : diag.label === 'CORRECT')
   const step = proving ? 3 : misconception || unknownBug ? 2 : diag ? 1 : 0
@@ -181,7 +188,8 @@ export default function Home() {
       {diag && (
         <div ref={diagRef} className="scroll-mt-20 space-y-6">
           <DiagnosisCard diag={diag} fn={problems.find((p) => p.id === submitted?.pid)?.function ?? problem?.function} />
-          {(unknownBug || misconception) && <ExplainPanel key={`explain:${submitted?.n}`} label={misconception} problemId={submitted?.pid ?? pid} code={submitted?.code ?? code} />}
+          {twinClose && <QuickCheck key={`probe:${submitted?.n}`} a={diagnosed} b={diag.runner_up.label} current={diagnosed} learnerId={lid} problemId={submitted?.pid ?? pid} onPick={setOverride} />}
+          {(unknownBug || misconception) && <ExplainPanel key={`explain:${misconception}:${submitted?.n}`} label={misconception} problemId={submitted?.pid ?? pid} code={submitted?.code ?? code} />}
           {misconception && <InterventionPanel key={`${misconception}:${submitted?.n}`} explained label={misconception} problemId={submitted?.pid ?? pid} code={submitted?.code ?? code} learnerId={lid} onProve={prove} />}
         </div>
       )}

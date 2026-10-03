@@ -50,3 +50,12 @@ def test_every_problem_has_difficulty_and_framing_and_glossary_is_plain():
         assert meta[p["id"]]["difficulty"] in ("easy", "medium", "harder") and 20 < len(meta[p["id"]]["framing"]) < 140, p["id"]
     terms = json.loads((CONTENT / "glossary.json").read_text(encoding="utf-8"))["terms"]
     assert len(terms) >= 15 and all(len(v) <= 140 for v in terms.values())
+
+
+def test_twin_probes_verify_by_execution():
+    import runpy
+    mod = runpy.run_path(str(CONTENT / "verify_probes.py"))
+    probes = json.loads((CONTENT / "probes.json").read_text(encoding="utf-8"))["probes"]
+    assert mod["problems"](probes) == []
+    pairs = {tuple(sorted(p["pair"])) for p in probes}
+    assert pairs == {("M1_RANGE_OFF_BY_ONE", "M2_INDEX_FROM_ONE"), ("M4_ACCUMULATOR_RESET", "M5_RETURN_IN_LOOP")}

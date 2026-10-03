@@ -35,6 +35,8 @@ def init():
         CREATE TABLE IF NOT EXISTS transfer_evidence(id INTEGER PRIMARY KEY AUTOINCREMENT, ts REAL, learner_id TEXT, misconception TEXT,
             problem_id TEXT, clean INTEGER, counted INTEGER, p_before REAL, p_after REAL);
         CREATE INDEX IF NOT EXISTS ix_evidence ON transfer_evidence(learner_id, misconception, ts);
+        CREATE TABLE IF NOT EXISTS probe_events(id INTEGER PRIMARY KEY AUTOINCREMENT, ts REAL, learner_id TEXT, problem_id TEXT,
+            probe_id TEXT, choice INTEGER, correct INTEGER, implies TEXT);
         """)
     if os.environ.get("RELEARN_SEED_DEMO") == "1":
         seed_demo()
@@ -86,6 +88,19 @@ def add_evidence(lid, misconception, problem_id, clean, counted, p_before, p_aft
     with _lock, conn() as c:
         c.execute("INSERT INTO transfer_evidence(ts, learner_id, misconception, problem_id, clean, counted, p_before, p_after) VALUES(?,?,?,?,?,?,?,?)",
                   (time.time(), lid, misconception, problem_id, int(clean), int(counted), p_before, p_after))
+
+
+def probes_seen(lid):
+    if not lid:
+        return 0
+    with conn() as c:
+        return c.execute("SELECT COUNT(*) n FROM probe_events WHERE learner_id=?", (lid,)).fetchone()["n"]
+
+
+def log_probe(lid, problem_id, probe_id, choice, correct, implies):
+    with _lock, conn() as c:
+        c.execute("INSERT INTO probe_events(ts, learner_id, problem_id, probe_id, choice, correct, implies) VALUES(?,?,?,?,?,?,?)",
+                  (time.time(), lid, problem_id, probe_id, choice, int(correct), json.dumps(implies)))
 
 
 def last_diagnosed_problem(lid, misconception):

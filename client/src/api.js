@@ -36,6 +36,8 @@ export const api = {
   insights: (synthetic) => req(`/insights/common-mistakes?include_synthetic=${!!synthetic}`),
   health: () => req('/health'),
   glossary: () => req('/glossary'),
+  probe: (a, b, lid) => req(`/probe/${a}/${b}${lid ? `?learner_id=${encodeURIComponent(lid)}` : ''}`),
+  probeAnswer: (body) => req('/probe/answer', { method: 'POST', body }),
   explain: (body) => req('/explain', { method: 'POST', body }),
   createCustom: (body) => req('/custom/problems', { method: 'POST', body }),
   metrics: () => req('/metrics'),
