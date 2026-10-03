@@ -7,6 +7,7 @@ import ExplainPanel from '../components/ExplainPanel'
 import HintPanel, { MAX_HINTS } from '../components/HintPanel'
 import InterventionPanel from '../components/InterventionPanel'
 import Onboarding from '../components/Onboarding'
+import { OwnQuestionCard, SolutionReveal } from '../components/OwnQuestion'
 import QuickCheck from '../components/QuickCheck'
 import StepIndicator from '../components/StepIndicator'
 import TransferPanel from '../components/TransferPanel'
@@ -29,6 +30,7 @@ export default function Home() {
   const [params] = useSearchParams()
   const showDemo = params.get('demo') === '1' // demo-bug panel is hidden unless the URL has ?demo=1
   const [onboard, setOnboard] = useState(() => !flag('onboarded'))
+  const [ownAvailable, setOwnAvailable] = useState(false) // optional AI drafting is configured on the server
   const [problems, setProblems] = useState([])
   const [pid, setPid] = useState('sum_list')
   const [code, setCode] = useState('')
@@ -69,6 +71,17 @@ export default function Home() {
   }, [healthy, lid, diag])
 
   useEffect(() => { pidRef.current = pid }, [pid])
+
+  // only after /health answers: the draft call itself can take up to 20 s and must not also wait for a cold start
+  useEffect(() => {
+    if (!healthy) return
+    api.draftStatus().then((s) => setOwnAvailable(!!s.available)).catch(() => setOwnAvailable(false))
+  }, [healthy])
+
+  const ownCreated = (p) => {
+    setProblems((ps) => [...ps.filter((x) => x.id !== p.id), p])
+    setPid(p.id); setCode(p.starter); setDemo(null); reset(); resetHints()
+  }
 
   const problem = problems.find((p) => p.id === pid)
   const recommended = problems.find((p) => p.id === suggested?.problem_id && p.id !== pid)
@@ -130,6 +143,8 @@ export default function Home() {
       {onboard && <Onboarding onDone={finishOnboarding} />}
       <StepIndicator current={step} allDone={correct} />
 
+      {ownAvailable && <OwnQuestionCard learnerId={lid} healthy={healthy} onCreated={ownCreated} />}
+
       <Card title="Write your solution" right={!onboard && (
         <button type="button" onClick={() => setOnboard(true)} className="min-h-[44px] text-sm text-accent hover:underline">How it works</button>
       )}>
@@ -182,6 +197,7 @@ export default function Home() {
           </div>
         </div>
         <HintPanel hints={hints} loading={hintBusy} note={hintNote} error={hintError} />
+        <SolutionReveal key={pid} problem={problem} learnerId={lid} passed={!!correct && submitted?.pid === pid} onHint={askHint} />
         <div className="mt-3"><ErrorNote error={error} /></div>
       </Card>
 

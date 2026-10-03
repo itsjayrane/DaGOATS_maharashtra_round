@@ -1,14 +1,9 @@
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
 import { Link } from 'react-router-dom'
 import { api } from '../api'
 import { Button, Card, ErrorNote, Pill } from '../components/ui'
-
-// Python-ish literal -> JSON value: 'text' -> "text", True/False/None -> true/false/null
-function pyToJson(text) {
-  return text.trim()
-    .replace(/'/g, '"')
-    .replace(/\bTrue\b/g, 'true').replace(/\bFalse\b/g, 'false').replace(/\bNone\b/g, 'null')
-}
+import { pyToJson, toPy } from '../pylit'
+import { useServerHealth } from '../serverHealth'
 
 function parseInputs(text) {
   return JSON.parse(`[${pyToJson(text)}]`) // "'banana'" -> ["banana"];  "[1, 2], 3" -> [[1, 2], 3]
@@ -25,6 +20,27 @@ export default function Teach() {
   const [busy, setBusy] = useState(false)
   const [error, setError] = useState('')
   const [made, setMade] = useState(null)
+  const { healthy } = useServerHealth()
+  const [draftOn, setDraftOn] = useState(false) // optional AI drafting configured on the server
+  const [question, setQuestion] = useState('')
+  const [drafting, setDrafting] = useState(false)
+  const [draftError, setDraftError] = useState('')
+  const [drafted, setDrafted] = useState(null) // the draft currently loaded into the form (source: ai_draft)
+
+  useEffect(() => {
+    if (!healthy) return
+    api.draftStatus().then((st) => setDraftOn(!!st.available)).catch(() => setDraftOn(false))
+  }, [healthy])
+
+  const draftIt = async () => {
+    setDrafting(true); setDraftError(''); setMade(null); setError('')
+    try {
+      const d = await api.draftCustom(question.trim())
+      setStatement(d.statement); setFn(d.function_name); setRef(d.reference_solution)
+      setTests(d.tests.map((t) => ({ input: t.input.map(toPy).join(', '), expected: toPy(t.expected) })))
+      setDrafted(d)
+    } catch (e) { setDraftError(e.message) } finally { setDrafting(false) }
+  }
 
   const setTest = (i, key, v) => setTests((ts) => ts.map((t, j) => (j === i ? { ...t, [key]: v } : t)))
 
@@ -34,7 +50,7 @@ export default function Teach() {
     let body
     try {
       body = {
-        statement, function_name: fn.trim(), reference_solution: ref,
+        statement, function_name: fn.trim(), reference_solution: ref, source: drafted ? 'ai_draft' : 'teacher',
         tests: tests.filter((t) => t.input.trim()).map((t, i) => {
           try {
             const out = { input: parseInputs(t.input) }
@@ -52,6 +68,27 @@ export default function Teach() {
 
   return (
     <div className="space-y-6">
+      {draftOn && (
+        <Card title="Just type your question" right={<Pill tone="info">AI drafts, you review</Pill>}>
+          <label htmlFor="teach-q" className="mb-2 block text-sm text-ink/90">
+            Describe the exercise in plain words. An AI drafts the function, a solution and test inputs; we run the solution to get
+            the expected answers and fill in the form below for you to check and edit before saving.
+          </label>
+          <textarea id="teach-q" value={question} onChange={(e) => setQuestion(e.target.value)} rows={3} maxLength={2000} className={field}
+            placeholder="e.g. Return the second largest distinct number in a list, or None if there isn't one" />
+          <div className="mt-3 flex flex-wrap items-center justify-between gap-3">
+            <span className="text-xs text-muted">{drafting ? 'Writing and checking a draft… (up to 20 s)' : 'At least 10 characters.'}</span>
+            <Button type="button" onClick={draftIt} disabled={!healthy || drafting || question.trim().length < 10}>{drafting ? 'Drafting…' : 'Draft it for me'}</Button>
+          </div>
+          <div className="mt-3"><ErrorNote error={draftError} /></div>
+          {drafted && (
+            <p className="mt-3 text-sm text-good" role="status">
+              Draft loaded below ({drafted.tests.length} tests, answers from running the solution). How it was read: {drafted.assumptions}
+            </p>
+          )}
+        </Card>
+      )}
+
       <Card title="Add your own problem" right={<Pill tone="info">for teachers</Pill>}>
         <p className="mb-4 text-sm text-muted">
           Write the task, a correct solution and at least 4 tests. We run your solution to check it and to fill in any expected
