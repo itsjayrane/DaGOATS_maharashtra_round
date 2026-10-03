@@ -2,7 +2,7 @@
 
 **A trained model finds the *misconception* behind a beginner's wrong Python code, the app teaches that one idea, then checks it actually stuck - a correct follow-up answer alone is not enough. When the model does not recognise the bug, it says so instead of guessing.**
 
-Built for **Bit N Build 2026 - AI/ML track**. Domain: introductory Python programming. Runs fully offline: **no LLM, no API keys** - every hint, explanation and question is curated or computed deterministically.
+Built for **Bit N Build 2026 - AI/ML track**. Domain: introductory Python programming. **Offline by default**: diagnosis, hints, explanations and lessons are curated or computed deterministically, with no API keys. One optional feature uses a free OpenAI-compatible LLM (Groq, Gemini, OpenRouter or a local Ollama) only to **write** practice problems from a learner's own question - see [Practise your own question](#practise-your-own-question-optional-ai-drafting).
 
 | Diagnose | Explain | Prove it |
 |---|---|---|
@@ -12,7 +12,7 @@ Built for **Bit N Build 2026 - AI/ML track**. Domain: introductory Python progra
 
 ## Contents
 
-1. [Problem](#problem) · 2. [Our approach](#our-approach) · 3. [Architecture](#architecture) · 4. [Misconception taxonomy and twin pairs](#misconception-taxonomy-and-twin-pairs) · 5. [Knowing when not to answer](#knowing-when-not-to-answer) · 6. [How reassessment works](#how-reassessment-works) · 7. [Model and metrics](#model-and-metrics) · 8. [For teachers](#for-teachers) · 9. [Screenshots](#screenshots) · 10. [Setup on Windows](#setup-on-windows) · 11. [API](#api) · 12. [Repo layout](#repo-layout) · 13. [Deployment](#deployment) · 14. [Limitations](#limitations-read-this)
+1. [Problem](#problem) · 2. [Our approach](#our-approach) · 3. [Architecture](#architecture) · 4. [Misconception taxonomy and twin pairs](#misconception-taxonomy-and-twin-pairs) · 5. [Knowing when not to answer](#knowing-when-not-to-answer) · 6. [How reassessment works](#how-reassessment-works) · 7. [Model and metrics](#model-and-metrics) · 8. [For teachers](#for-teachers) · [Practise your own question](#practise-your-own-question-optional-ai-drafting) · 9. [Screenshots](#screenshots) · 10. [Setup on Windows](#setup-on-windows) · 11. [API](#api) · 12. [Repo layout](#repo-layout) · 13. [Deployment](#deployment) · 14. [Limitations](#limitations-read-this)
 
 ---
 
@@ -242,6 +242,20 @@ AST structure is the strongest single group and execution adds to it. "Task flag
 - **Common mistakes** (`/insights`, `GET /insights/common-mistakes`, `GET /problems/{id}/common-mistakes`): failed submissions grouped by misconception - count, share, unique learners (salted SHA-256, env `INSIGHTS_SALT`), the 2 shortest examples with the lines a verified fix changes, the typical failing test in words and the lesson summary. Unknown verdicts are clustered by failing-test signature. CSV export with hashed ids (code optional). A SYNTHETIC toggle shows demo data (`RELEARN_SEED_DEMO=1`), always labelled.
 - **Learner patterns** (`GET /learner/{id}/patterns`): a misconception seen ≥ 2 times on ≥ 2 different problems, top 3, plus a suggested next problem (shown on the Dashboard and as "Recommended next").
 
+## Practise your own question (optional AI drafting)
+
+A learner types any beginner Python question ("return the second largest distinct number in a list, or None") and gets a problem to solve, checked exactly like the built-in ones. The AI only **writes the problem**; it never grades:
+
+1. A **free OpenAI-compatible LLM** (Groq, Gemini, OpenRouter or a local Ollama) drafts `{function_name, reference_solution, test inputs, assumptions}` ([`server/app/draft.py`](server/app/draft.py), stdlib `urllib`, no SDK). The question is sent wrapped in `<question>` tags and the system prompt says it is data, not instructions.
+2. **Expected outputs never come from the model**: any it sends are dropped, and the reference is **run in the sandbox** (`custom.build`, the same path as teacher problems). A draft that does not parse, does not run, mutates its input or has too few tests is sent back with the grader's error ("The grader rejected this draft: …") - at most 3 attempts inside a **20 s total budget** (each call's timeout is the time left), then a friendly "try rewording" message.
+3. **Checking the learner's code is unchanged and offline**: hidden tests, LightGBM diagnosis (`in_distribution: false`, stricter abstention), explanation card and curated hints. No LLM is involved.
+4. **The solution stays hidden** until the learner asks ("Show solution" first offers a hint) or passes every test ("Compare with our solution"). Explanations never show it as "best solution", and every reveal is logged (`solution_revealed`).
+5. Keys and raw provider errors are never logged or returned; failures become friendly 502 / 503 messages (429 → "free AI limit reached").
+
+Teachers get the same drafting on `/teach` ("Just type your question"): the draft fills the normal form for review and is saved with `source: ai_draft` and the badge "your question — AI-drafted, checked by running".
+
+**Off by default.** With `LLM_*` unset nothing changes: no new UI, `/health` and every other response are identical.
+
 ## Screenshots
 
 **Twin pairs - same symptom, different cause, correctly separated**
@@ -338,6 +352,30 @@ cd ..;     ml\.venv\Scripts\python content\verify_probes.py # run every twin-pro
 | `INSIGHTS_SALT` | server | salt for hashing learner ids in insights / CSV (a dev default is used if unset) |
 | `RELEARN_SEED_DEMO` | server | `1` seeds a clearly labelled SYNTHETIC learner and class for demos |
 | `RELEARN_RATE_LIMIT` | server | `off` disables per-IP / per-learner rate limits (on by default) |
+| `LLM_BASE_URL`, `LLM_MODEL`, `LLM_API_KEY` | server (optional) | turn on "Practise your own question"; the key may be empty only for a localhost server. Put them in `server\.env` locally (gitignored) or in the Render dashboard |
+
+One example per free provider (model names change - check the provider's list):
+
+```ini
+# Groq
+LLM_BASE_URL=https://api.groq.com/openai/v1
+LLM_MODEL=llama-3.3-70b-versatile
+LLM_API_KEY=<your Groq key>
+
+# Google Gemini (OpenAI-compatible endpoint)
+LLM_BASE_URL=https://generativelanguage.googleapis.com/v1beta/openai
+LLM_MODEL=gemini-2.5-flash
+LLM_API_KEY=<your Gemini key>
+
+# OpenRouter (free models end in :free)
+LLM_BASE_URL=https://openrouter.ai/api/v1
+LLM_MODEL=meta-llama/llama-3.3-70b-instruct:free
+LLM_API_KEY=<your OpenRouter key>
+
+# Ollama on this machine (no key)
+LLM_BASE_URL=http://localhost:11434/v1
+LLM_MODEL=qwen2.5-coder:7b
+```
 
 ### Troubleshooting
 
@@ -364,9 +402,15 @@ All changes are additive; existing fields keep their meaning.
 | `POST /hint {problem_id, code, hint_level 1-3}` | curated progressive hint |
 | `POST /custom/problems`, `GET /custom/problems` | teacher-written problems |
 | `GET /insights/common-mistakes`, `GET /problems/{id}/common-mistakes`, `GET /insights/export.csv` | common-mistakes analytics |
+| `GET /custom/draft/status` | `{available, model}` - is the optional drafting LLM configured (never the key) |
+| `POST /custom/practice {statement, learner_id?}` | learner's own question -> saved, sandbox-checked problem: id, statement, starter, ONE example, assumptions, badge - **no reference solution** |
+| `POST /custom/draft {statement}` | teacher review: the draft with sandbox-computed expected values (not saved) |
+| `GET /custom/problems/{id}/solution?learner_id=` | reveal a custom problem's verified solution + one-line note (logged) |
 | `GET /glossary`, `GET /metrics`, `GET /metrics/confusion-matrix`, `GET /health` | tooltips, evaluation data, health |
 
-Limits: code ≤ 20,000 characters; per-minute rate limits (hint 10, diagnose 30, intervene 30, custom 5) per IP and per learner.
+Limits: code ≤ 20,000 characters; questions ≤ 2,000; per-minute rate limits (hint 10, diagnose 30, intervene 30, custom 5, draft 5, practice 5, solution 20) per IP and per learner.
+
+In production the browser calls **`/api/...` on the Vercel origin**; `client/vercel.json` rewrites it to the Render backend, so ad blockers that block cross-site requests (`net::ERR_BLOCKED_BY_CLIENT`) do not break the app. Requests must finish well under Vercel's proxy time limit, which is why drafting has a 20 s total budget.
 
 ## Repo layout
 
@@ -395,5 +439,8 @@ Backend on **Render** (`render.yaml`; the build only installs the pinned depende
 - **Mastery is BKT-style with hand-set constants** (guess/slip/learn 0.10), not parameters fitted to learner data.
 - **Custom problems are out of distribution.** The model never saw them, so diagnosis there is stricter and more often "not sure"; the explanation card still works because it only needs the tests and the reference.
 - **Sandbox is demo-grade**: subprocess, 2 s timeout, restricted builtins, AST banlist and (Linux only) CPU/memory/file-size rlimits. Do not expose it to a hostile public.
+- **AI-drafted problems are checked for consistency, not for intent.** The sandbox proves the drafted solution runs, never mutates its input and agrees with itself on every test - not that it does what the learner meant. "How we read your question" shows the model's assumptions; a wrong reading is still possible.
+- **The diagnosis model was not trained on these problems**, so expect more "not sure" verdicts on learners' own questions (stricter threshold, `in_distribution: false`).
+- **Free LLM tiers are rate-limited** (the app then says so) and some providers may use free-tier traffic for training - do not type personal data into the question box.
 - **Free-tier hosting**: Render's SQLite is on ephemeral disk (history, custom problems and insights reset on redeploy) and the service sleeps when idle.
 - **Screenshots** in `docs/screenshots/` are regenerated by hand and may lag the latest UI.

@@ -1,4 +1,5 @@
-"""Curated content checks (no server needed): hints, concept pool, references, and that nothing calls an external LLM."""
+"""Curated content checks (no server needed): hints, concept pool, references, and no LLM SDKs anywhere (the only LLM
+call is the optional, stdlib-only problem drafting in server/app/draft.py)."""
 import contextlib, io, json, pathlib, re
 
 ROOT = pathlib.Path(__file__).resolve().parents[2]

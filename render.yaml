@@ -20,3 +20,10 @@ services:
         sync: false
       - key: INSIGHTS_SALT         # salt for hashing learner ids on the Insights page / CSV export (set any long random string)
         generateValue: true
+      # optional: "Practise your own question" - a free OpenAI-compatible LLM only drafts problems (unset = feature off)
+      - key: LLM_BASE_URL          # e.g. https://api.groq.com/openai/v1
+        sync: false
+      - key: LLM_MODEL             # e.g. llama-3.3-70b-versatile
+        sync: false
+      - key: LLM_API_KEY           # set in the dashboard only; never commit it
+        sync: false
