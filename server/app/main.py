@@ -9,7 +9,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import FileResponse
 from pydantic import BaseModel
 
-from . import db, sandbox
+from . import concept, db, sandbox
 from .diagnoser import DiagnoserService
 from relearn_ml import fixer, references
 from .paths import CONTENT, DOCS, MODEL_PATH
@@ -96,7 +96,7 @@ def diagnose(body: DiagnoseIn):
     d = svc().diagnose(body.code, p, res)
     passed = res["status"] == "ok" and all(t["ok"] for t in res["tests"])
     out = dict(label=d["label"], confidence=d["confidence"], evidence=d["evidence"], test_results=clean_tests(res),
-               passed=passed, status=res["status"], error=res.get("error"), probabilities=d["probabilities"],
+               passed=passed, status=res["status"], error=res.get("error") or d.get("error"), probabilities=d["probabilities"],
                ambiguous=d["ambiguous"], runner_up=d["runner_up"])
     if body.learner_id:
         lab = d["label"]
@@ -113,6 +113,7 @@ class IntervenIn(BaseModel):
     label: str
     problem_id: Optional[str] = None  # with `code`, the response includes `personalized`: the learner's own code + a verified minimal fix
     code: Optional[str] = None
+    learner_id: Optional[str] = None  # used to rotate fallback concept questions (never the same one twice in a row)
 
 
 @app.post("/intervene")
@@ -126,6 +127,10 @@ def intervene(body: IntervenIn):
         p = get_problem(body.problem_id)
         # minimal fix of THEIR code, verified in the sandbox against the problem's tests; falls back to the reference solution
         out["personalized"] = fixer.personalize(body.code, p, m, sandbox.run, references.reference_variants()[p["id"]])
+        # problem-specific concept check built from the problem, the learner's code and the misconception (pool fallback, logged)
+        q, src = concept.for_learner(p, body.code, m, sandbox.run, body.learner_id)
+        out["intervention"] = {**c["intervention"], "predict": q}
+        out["concept_source"] = src
     return out
 
 
@@ -186,7 +191,7 @@ def reassess(body: ReassessIn):
         dict(check="tests_pass", passed=passed,
              detail=f"{sum(t['ok'] for t in res['tests'])}/{len(res['tests'])} tests pass." if res["status"] == "ok" else res.get("error", res["status"])),
         dict(check="misconception_not_detected", passed=bool(clear),
-             detail=(f"Model: {d['label']} (P({short})={p_m:.2f}, needs < {CLEAR_THRESHOLD})." if d["label"] else "Code did not run, so it cannot be assessed.")),
+             detail=(f"Model: {d['label']} (P({short})={p_m:.2f}, needs < {CLEAR_THRESHOLD})." if d["label"] else (d.get("error") or "Code did not run, so it cannot be assessed."))),
         dict(check="concept_answer", passed=concept_ok,
              detail="Concept question answered correctly." if concept_ok else "Concept question answered incorrectly."),
     ]
@@ -238,3 +243,9 @@ def baseline():
     if not f.exists():
         return dict(status="not_run", reason="Baseline has not been run (see ml/baseline.py).")
     return json.loads(f.read_text(encoding="utf-8"))
+
+
+@app.get("/concept-stats")
+def concept_stats():
+    """How often concept checks are generated, served from cache, or fall back to the pool (and why)."""
+    return db.concept_stats()

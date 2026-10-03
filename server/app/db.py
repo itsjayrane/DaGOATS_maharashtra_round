@@ -25,6 +25,9 @@ def init():
             problem_id TEXT, misconception TEXT, label TEXT, confidence REAL, passed INTEGER, resolved INTEGER,
             mastery_after REAL, code TEXT, detail TEXT);
         CREATE INDEX IF NOT EXISTS ix_att ON attempts(learner_id, ts);
+        CREATE TABLE IF NOT EXISTS concept_events(id INTEGER PRIMARY KEY AUTOINCREMENT, ts REAL, learner_id TEXT, problem_id TEXT,
+            misconception TEXT, source TEXT, reason TEXT, pool_idx INTEGER);
+        CREATE TABLE IF NOT EXISTS concept_state(learner_id TEXT, misconception TEXT, last_idx INTEGER, PRIMARY KEY(learner_id, misconception));
         """)
 
 
@@ -72,3 +75,32 @@ def learner(lid):
                      confidence=r["confidence"], passed=bool(r["passed"]), resolved=bool(r["resolved"]), mastery_after=r["mastery_after"])
                 for r in c.execute("SELECT * FROM attempts WHERE learner_id=? ORDER BY id", (lid,))]
         return dict(learner_id=lid, mastery=mastery, history=hist)
+
+
+# ---- concept-check bookkeeping: every generated / cached / fallback question is logged so fallback frequency is visible
+def log_concept(learner_id, problem_id, misconception, source, reason=None, pool_idx=None):
+    with _lock, conn() as c:
+        c.execute("INSERT INTO concept_events(ts, learner_id, problem_id, misconception, source, reason, pool_idx) VALUES(?,?,?,?,?,?,?)",
+                  (time.time(), learner_id or "anon", problem_id, misconception, source, reason, pool_idx))
+
+
+def concept_last(learner_id, misconception):
+    with conn() as c:
+        r = c.execute("SELECT last_idx FROM concept_state WHERE learner_id=? AND misconception=?", (learner_id, misconception)).fetchone()
+        return r["last_idx"] if r else None
+
+
+def concept_set_last(learner_id, misconception, idx):
+    with _lock, conn() as c:
+        c.execute("INSERT OR REPLACE INTO concept_state(learner_id, misconception, last_idx) VALUES(?,?,?)", (learner_id, misconception, idx))
+
+
+def concept_stats(recent=20):
+    with conn() as c:
+        by_source = {r["source"]: r["n"] for r in c.execute("SELECT source, COUNT(*) n FROM concept_events GROUP BY source")}
+        reasons = {(r["reason"] or "").split(":")[0]: r["n"] for r in c.execute("SELECT reason, COUNT(*) n FROM concept_events WHERE source='fallback_pool' GROUP BY reason")}
+        rows = [dict(ts=r["ts"], learner_id=r["learner_id"], problem_id=r["problem_id"], misconception=r["misconception"], reason=r["reason"], pool_idx=r["pool_idx"])
+                for r in c.execute("SELECT * FROM concept_events WHERE source='fallback_pool' ORDER BY id DESC LIMIT ?", (recent,))]
+    total = sum(by_source.values())
+    fb = by_source.get("fallback_pool", 0)
+    return dict(total=total, by_source=by_source, fallback_count=fb, fallback_rate=(fb / total) if total else 0.0, fallback_reasons=reasons, recent_fallbacks=rows)

@@ -15,3 +15,22 @@ env/
 .env
 ml/artifacts/gemini_cache.json
 .run/
+
+# secrets: any .env variant (the committed template is the exception)
+.env.*
+!.env.example
+**/.env
+**/.env.*
+!**/.env.example
+
+# model weights / large artifacts are never committed (the serving model is trained in the Render build)
+*.joblib
+*.pkl
+*.pickle
+*.pt
+*.pth
+*.ckpt
+*.safetensors
+*.onnx
+*.h5
+*.npy

@@ -69,6 +69,10 @@ def run_submission(code, problem):
         rec["printed"] = bool(buf.getvalue().strip()); rec["stdout"] = buf.getvalue()[:200]
         rec["mutated"] = args != before
         rec["none"] = res is None
+        try:  # the arguments AFTER the call (lets callers show what a function did to its inputs)
+            rec["args_after"] = copy.deepcopy(args)
+        except Exception:
+            pass
         try: rec["got"] = copy.deepcopy(res)
         except Exception: rec["got"] = repr(res)
         ok = _eq(res, t["expected"])

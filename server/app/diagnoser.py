@@ -1,4 +1,6 @@
 """Wraps the trained model: probabilities + human-readable evidence (model feature contributions + observed behaviour)."""
+import ast
+
 import joblib
 import numpy as np
 
@@ -51,6 +53,24 @@ DESC = {
 }
 
 
+NO_ATTEMPT_MSG = "This is still the starter code - write your solution, then submit."
+
+
+def is_no_attempt(code, fn_name):
+    """True when the target function's body is empty: only `pass`, `...`, a docstring or a bare constant.
+
+    The model has no 'no attempt' class, and a function that returns nothing looks exactly like print-without-return
+    (M3), so an untouched starter would otherwise be diagnosed as M3 for every problem."""
+    try:
+        tree = ast.parse(code)
+    except SyntaxError:
+        return False
+    fn = next((n for n in ast.walk(tree) if isinstance(n, ast.FunctionDef) and n.name == fn_name), None)
+    if fn is None:
+        return False
+    return all(isinstance(s, ast.Pass) or (isinstance(s, ast.Expr) and isinstance(s.value, ast.Constant)) for s in fn.body)
+
+
 class DiagnoserService:
     def __init__(self):
         art = joblib.load(MODEL_PATH)
@@ -78,6 +98,9 @@ class DiagnoserService:
         if exec_res["status"] != "ok":
             return dict(label=None, confidence=None, probabilities=None, ambiguous=False, runner_up=None,
                         evidence=[dict(kind="error", text=exec_res.get("error", exec_res["status"]))])
+        if is_no_attempt(code, problem["fn"]):
+            return dict(label=None, confidence=None, probabilities=None, ambiguous=False, runner_up=None, no_attempt=True,
+                        error=NO_ATTEMPT_MSG, evidence=[dict(kind="error", text=NO_ATTEMPT_MSG)])
         feats = featurize(code, problem, exec_res)
         P = self.model.predict_proba([feats])[0]
         order = np.argsort(-P)

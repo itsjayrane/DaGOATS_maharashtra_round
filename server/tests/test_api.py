@@ -180,3 +180,30 @@ def test_baseline_endpoint(c):
         assert "reason" in r
     else:
         assert {"ours", "gemini", "gemini_model"} <= set(r)
+
+
+def test_untouched_starter_code_is_not_diagnosed_as_m3(c):
+    """Regression: `pass` bodies returned None on every test and were labelled M3 for every problem."""
+    problems = {p["id"]: p for p in c.get("/problems").json()}
+    for pid in ("sum_to_n", "last_item", "sum_list", "product", "average", "capitalize_first", "append_copy", "contains_negative"):
+        r = c.post("/diagnose", json={"problem_id": pid, "code": problems[pid]["starter"], "learner_id": "starter-learner"}).json()
+        assert r["label"] is None and r["status"] == "ok" and "starter" in r["error"], pid
+        assert r["confidence"] is None and r["evidence"][0]["kind"] == "error"
+    docstring_only = 'def square(n):\n    """TODO"""\n'
+    ellipsis = "def square(n):\n    ...\n"
+    for code in (docstring_only, ellipsis):
+        assert c.post("/diagnose", json={"problem_id": "square", "code": code}).json()["label"] is None
+    # no attempt must not touch mastery
+    m = c.get("/learner/starter-learner").json()["mastery"]
+    assert all(v["mastery"] == 0.5 for v in m.values())
+    # real attempts are untouched: a genuine print-without-return is still M3, and a real solution is still CORRECT
+    assert c.post("/diagnose", json={"problem_id": "square", "code": "def square(n):\n    print(n * n)\n"}).json()["label"] == "M3_PRINT_NOT_RETURN"
+    assert c.post("/diagnose", json={"problem_id": "square", "code": "def square(n):\n    return n * n\n"}).json()["label"] == "CORRECT"
+
+
+def test_reassess_with_starter_code_explains_itself(c):
+    problems = {p["id"]: p for p in c.get("/problems").json()}
+    r = c.post("/reassess", json={"learner_id": "starter-2", "misconception": "M5", "problem_id": "product",
+                                  "code": problems["product"]["starter"], "concept_answer": 1}).json()
+    assert not r["resolved"]
+    assert any("starter" in x["detail"] for x in r["reasons"] if x["check"] == "misconception_not_detected")

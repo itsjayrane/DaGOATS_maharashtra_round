@@ -103,7 +103,7 @@ export default function Home() {
           {diag.label === 'CORRECT' && (
             <Card><p className="text-sm text-good">Nice - no misconception detected.{showDemo && ' Try a demo bug above to see the diagnosis → intervention → proof loop.'}</p></Card>
           )}
-          {misconception && <InterventionPanel key={`${misconception}:${submitted?.n}`} label={misconception} problemId={submitted?.pid ?? pid} code={submitted?.code ?? code} onProve={prove} />}
+          {misconception && <InterventionPanel key={`${misconception}:${submitted?.n}`} label={misconception} problemId={submitted?.pid ?? pid} code={submitted?.code ?? code} learnerId={lid} onProve={prove} />}
         </div>
       )}
 

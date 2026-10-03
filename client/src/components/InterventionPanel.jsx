@@ -37,18 +37,18 @@ function Contrast({ p, generic }) {
   )
 }
 
-export default function InterventionPanel({ label, problemId, code, onProve }) {
+export default function InterventionPanel({ label, problemId, code, learnerId, onProve }) {
   const [data, setData] = useState(null)
   const [error, setError] = useState('')
   const [picked, setPicked] = useState(null)
 
   useEffect(() => {
     let live = true
-    api.intervene(label, { problem_id: problemId, code })
+    api.intervene(label, { problem_id: problemId, code, learner_id: learnerId })
       .then((d) => live && setData(d))
       .catch((e) => live && setError(e.message))
     return () => { live = false }
-  }, [label, problemId, code])
+  }, [label, problemId, code, learnerId])
 
   if (error) return <Card title="Targeted intervention"><ErrorNote error={error} /></Card>
   if (!data?.intervention) return <Card title="Targeted intervention"><p className="text-sm text-muted">Building a fix for your code…</p></Card>
@@ -77,7 +77,10 @@ export default function InterventionPanel({ label, problemId, code, onProve }) {
       </div>
 
       <div className="mt-6 rounded-lg border border-line bg-raised p-4">
-        <h4 className="mb-2 text-xs font-semibold uppercase tracking-wide text-muted">Concept check</h4>
+        <div className="mb-2 flex items-center justify-between gap-2">
+          <h4 className="text-xs font-semibold uppercase tracking-wide text-muted">Concept check</h4>
+          <span className="text-xs text-muted">{data.concept_source === 'fallback_pool' ? 'general practice question' : data.personalized ? 'about your code' : ''}</span>
+        </div>
         <pre className="mb-3 whitespace-pre-wrap font-mono text-[13px] text-ink">{q.question}</pre>
         <div className="grid gap-2 sm:grid-cols-2" role="radiogroup" aria-label="Concept check answers">
           {q.options.map((o, i) => {
