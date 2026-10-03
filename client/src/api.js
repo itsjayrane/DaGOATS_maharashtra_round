@@ -1,4 +1,6 @@
-export const API = (import.meta.env.VITE_API_URL || 'http://localhost:8000').replace(/\/$/, '')
+// VITE_API_URL wins if set. Otherwise production builds call the same origin under /api (Vercel rewrites it to the Render
+// backend, so ad blockers that block cross-site requests are not a problem); dev talks to the local backend.
+export const API = (import.meta.env.VITE_API_URL || (import.meta.env.PROD ? '/api' : 'http://localhost:8000')).replace(/\/$/, '')
 
 async function req(path, opts = {}) {
   let res

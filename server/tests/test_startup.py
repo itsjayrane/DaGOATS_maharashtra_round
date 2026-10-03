@@ -57,3 +57,22 @@ def test_startup_needs_no_api_key_or_gemini_variable():
     assert "'model_loaded': True" in r.stdout
     src = "\n".join(p.read_text(encoding="utf-8") for p in (SERVER / "app").glob("*.py"))
     assert "GEMINI" not in src and "API_KEY" not in src
+
+
+def test_env_file_loader_parses_and_never_overrides(tmp_path, monkeypatch):
+    from app import envfile
+    f = tmp_path / ".env"
+    f.write_text("# comment\n\nRELEARN_T1=plain\nexport RELEARN_T2='quoted value'\nRELEARN_T3=\"keep\"\nnot a line\n", encoding="utf-8")
+    monkeypatch.setenv("RELEARN_T3", "from-real-env")
+    for k in ("RELEARN_T1", "RELEARN_T2"):
+        monkeypatch.delenv(k, raising=False)
+    assert envfile.load(f) == ["RELEARN_T1", "RELEARN_T2"]
+    assert os.environ["RELEARN_T1"] == "plain" and os.environ["RELEARN_T2"] == "quoted value" and os.environ["RELEARN_T3"] == "from-real-env"
+    assert envfile.load(tmp_path / "missing.env") == []
+
+
+def test_vercel_proxies_api_before_the_spa_fallback():
+    import json
+    rw = json.loads((ROOT / "client" / "vercel.json").read_text(encoding="utf-8"))["rewrites"]
+    assert rw[0]["source"] == "/api/:path*" and rw[0]["destination"].endswith(".onrender.com/:path*")
+    assert rw[-1] == {"source": "/(.*)", "destination": "/index.html"}

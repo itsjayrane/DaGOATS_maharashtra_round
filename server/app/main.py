@@ -9,8 +9,9 @@ from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import FileResponse, Response
 from pydantic import BaseModel, Field
 
-from . import artifacts
+from . import artifacts, envfile
 
+ENV_LOADED = envfile.load()  # server/.env if present (gitignored); never overrides real environment variables
 artifacts.check()  # before anything reads content/ or ml/artifacts: one clear error listing every missing file
 
 from . import bkt, concept, custom, db, explain, hint, insights, ratelimit, sandbox
