@@ -143,6 +143,21 @@ _DEMO = [  # (minutes ago, kind, problem, label, passed, resolved, misconception
     (10, "diagnose", "average", "CORRECT", 1, 0, None, None),
 ]
 
+# synthetic class for the Insights page: (learner, problem, label, code). verdict 'unknown' for OTHER_BUG rows.
+_DEMO_CLASS = [
+    (1, "sum_to_n", "M1_RANGE_OFF_BY_ONE", "def sum_to_n(n):\n    total = 0\n    for i in range(1, n):\n        total += i\n    return total\n"),
+    (2, "sum_to_n", "M1_RANGE_OFF_BY_ONE", "def sum_to_n(n):\n    total = 0\n    for i in range(n):\n        total += i\n    return total\n"),
+    (3, "sum_to_n", "M1_RANGE_OFF_BY_ONE", "def sum_to_n(n):\n    total = 0\n    for i in range(1, n):\n        total = total + i\n    return total\n"),
+    (1, "last_item", "M2_INDEX_FROM_ONE", "def last_item(items):\n    return items[len(items)]\n"),
+    (4, "last_item", "M2_INDEX_FROM_ONE", "def last_item(items):\n    return items[len(items)]\n"),
+    (1, "product", "M5_RETURN_IN_LOOP", "def product(nums):\n    p = 1\n    for x in nums:\n        p *= x\n        return p\n"),
+    (1, "sum_list", "M5_RETURN_IN_LOOP", "def sum_list(nums):\n    total = 0\n    for x in nums:\n        total += x\n        return total\n"),
+    (3, "sum_list", "M4_ACCUMULATOR_RESET", "def sum_list(nums):\n    for x in nums:\n        total = 0\n        total += x\n    return total\n"),
+    (4, "square", "M3_PRINT_NOT_RETURN", "def square(n):\n    print(n * n)\n"),
+    (2, "sum_to_n", "OTHER_BUG", "def sum_to_n(n):\n    return n * n\n"),
+    (3, "sum_to_n", "OTHER_BUG", "def sum_to_n(n):\n    return n * n\n"),
+]
+
 
 def seed_demo():
     """Idempotent: creates the synthetic learner only if it does not exist yet. Every row is marked synthetic."""
@@ -157,4 +172,11 @@ def seed_demo():
                       (DEMO_LEARNER, now - mins * 60, kind, pid, misc, label, 0.95, passed, resolved, after, "", json.dumps({"synthetic": True})))
             if misc and after is not None:
                 c.execute("UPDATE mastery SET value=?, resolved=? WHERE learner_id=? AND misconception=?", (after, int(bool(resolved)), DEMO_LEARNER, misc))
+        for i, (k, pid, label, code) in enumerate(_DEMO_CLASS):
+            lid = f"synthetic-learner-{k}"
+            ensure_learner(c, lid)
+            verdict = "unknown" if label == "OTHER_BUG" else "misconception"
+            c.execute("INSERT INTO attempts(learner_id, ts, kind, problem_id, misconception, label, confidence, passed, resolved, mastery_after, code, detail)"
+                      " VALUES(?,?,?,?,?,?,?,?,?,?,?,?)",
+                      (lid, now - (300 - i) * 60, "diagnose", pid, None, label, 0.9, 0, 0, None, code, json.dumps({"synthetic": True, "verdict": verdict})))
         return True

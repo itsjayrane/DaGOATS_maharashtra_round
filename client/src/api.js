@@ -32,6 +32,8 @@ export const api = {
     req(`/transfer/${m}?learner_id=${encodeURIComponent(learnerId)}${exclude ? `&exclude=${exclude}` : ''}`),
   reassess: (body) => req('/reassess', { method: 'POST', body }),
   learner: (id) => req(`/learner/${encodeURIComponent(id)}`),
+  patterns: (id) => req(`/learner/${encodeURIComponent(id)}/patterns`),
+  insights: (synthetic) => req(`/insights/common-mistakes?include_synthetic=${!!synthetic}`),
   health: () => req('/health'),
   explain: (body) => req('/explain', { method: 'POST', body }),
   createCustom: (body) => req('/custom/problems', { method: 'POST', body }),

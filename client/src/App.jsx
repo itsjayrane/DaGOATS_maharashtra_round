@@ -2,6 +2,7 @@ import { NavLink, Route, Routes } from 'react-router-dom'
 import Dashboard from './pages/Dashboard'
 import Eval from './pages/Eval'
 import Home from './pages/Home'
+import Insights from './pages/Insights'
 import Teach from './pages/Teach'
 import { ServerBanner, ServerHealthProvider } from './components/ServerHealth'
 
@@ -30,6 +31,7 @@ export default function App() {
           <Route path="/dashboard" element={<Dashboard />} />
           <Route path="/eval" element={<Eval />} />
           <Route path="/teach" element={<Teach />} />
+          <Route path="/insights" element={<Insights />} />
           <Route path="*" element={<p className="text-muted">Page not found.</p>} />
         </Routes>
       </main>

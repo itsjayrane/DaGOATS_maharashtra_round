@@ -6,10 +6,10 @@ from typing import Optional, Union
 
 from fastapi import FastAPI, HTTPException, Request
 from fastapi.middleware.cors import CORSMiddleware
-from fastapi.responses import FileResponse
+from fastapi.responses import FileResponse, Response
 from pydantic import BaseModel, Field
 
-from . import concept, custom, db, explain, hint, ratelimit, sandbox
+from . import concept, custom, db, explain, hint, insights, ratelimit, sandbox
 from .diagnoser import DiagnoserService
 from relearn_ml import fixer, references
 from .paths import CONTENT, DOCS, MODEL_PATH
@@ -351,3 +351,28 @@ def create_custom_problem(body: CustomProblemIn, request: Request):
 def list_custom_problems(request: Request):
     ratelimit.check(request, "custom")
     return [public_problem(p) for p in custom.all_problems()]
+
+
+@app.get("/problems/{problem_id}/common-mistakes")
+def problem_common_mistakes(problem_id: str, include_synthetic: bool = False):
+    """What learners get wrong on one problem: named misconceptions + clusters of unknown bugs (by failing tests)."""
+    get_problem(problem_id)
+    return insights.common_mistakes(get_problem, MISC, sandbox.run, problem_id, include_synthetic)
+
+
+@app.get("/insights/common-mistakes")
+def all_common_mistakes(include_synthetic: bool = False):
+    return insights.common_mistakes(get_problem, MISC, sandbox.run, None, include_synthetic)
+
+
+@app.get("/insights/export.csv")
+def insights_csv(include_code: bool = False, include_synthetic: bool = False):
+    """Wrong attempts as CSV; learner ids are salted SHA-256 hashes, code only on request."""
+    return Response(insights.export_csv(include_code, include_synthetic), media_type="text/csv",
+                    headers={"Content-Disposition": 'attachment; filename="relearn-common-mistakes.csv"'})
+
+
+@app.get("/learner/{learner_id}/patterns")
+def learner_patterns(learner_id: str):
+    """Misconceptions this learner repeats (>= 2 attempts on >= 2 problems), top 3, plus a suggested next problem."""
+    return insights.learner_patterns(learner_id, list(PROBLEMS.values()), MISC)

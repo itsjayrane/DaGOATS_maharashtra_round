@@ -66,8 +66,10 @@ export default function Dashboard() {
   const [empty, setEmpty] = useState(false)
   const [error, setError] = useState('')
   const [expanded, setExpanded] = useState(false)
+  const [patterns, setPatterns] = useState(null)
 
   useEffect(() => {
+    api.patterns(lid).then(setPatterns).catch(() => setPatterns(null))
     api.learner(lid).then(setData).catch((e) => (e.status === 404 ? setEmpty(true) : setError(e.message)))
   }, [lid])
 
@@ -100,6 +102,24 @@ export default function Dashboard() {
           {expanded ? 'Show fewer' : `Show all (${MISC.length})`}
         </button>
       </Card>
+
+      {patterns?.patterns?.length > 0 && (
+        <Card title="Mistakes you keep making" right={<Pill tone="warn">pattern</Pill>}>
+          <ul className="space-y-2 text-sm">
+            {patterns.patterns.map((p) => (
+              <li key={p.label}><span className="font-semibold">{p.name}</span> <span className="text-muted">- {p.attempts} times, on {p.problems.join(', ')}</span></li>
+            ))}
+          </ul>
+          {patterns.suggested_next && (
+            <p className="mt-3 text-sm">
+              Recommended next: <Link to={`/?problem=${patterns.suggested_next.problem_id}`} className="font-semibold text-accent hover:underline">{patterns.suggested_next.title}</Link>
+              <span className="text-muted"> - {patterns.suggested_next.reason}</span>
+            </p>
+          )}
+        </Card>
+      )}
+
+      <p className="text-sm text-muted">Teaching a class? See the <Link to="/insights" className="text-accent hover:underline">common mistakes across all learners</Link>.</p>
 
       <Card title={`Attempt history · ${data.history.length}`}>
         {data.history.length === 0 ? <p className="text-sm text-muted">Nothing yet.</p> : (

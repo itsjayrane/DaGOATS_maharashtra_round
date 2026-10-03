@@ -17,3 +17,5 @@ services:
         value: /tmp/relearn.db
       - key: CORS_ORIGINS          # extra allowed origins, comma-separated (any *.vercel.app is already allowed)
         sync: false
+      - key: INSIGHTS_SALT         # salt for hashing learner ids on the Insights page / CSV export (set any long random string)
+        generateValue: true
