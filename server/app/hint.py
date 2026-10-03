@@ -1,20 +1,18 @@
 """Progressive hints (POST /hint).
 
-Uses the project's existing LLM client (the Gemini REST helpers in ml/baseline.py; key from GEMINI_API_KEY) and never trusts it:
+Uses the app's shared Gemini client (relearn_ml.llm: GEMINI_API_KEY via python-dotenv, Flash model, 10 s timeout) and never trusts it:
 every answer is checked against hard guardrails in code (<= 60 words, no code at levels 1-2, <= 2 code lines at level 3, no leaked
 reference solution, nothing the problem forbids). If the call fails, there is no key, or a guardrail rejects the answer, a static
 hint is returned instead. Every request is logged (learner, problem, level, source, reason) for the Dashboard.
 """
 import json
 import logging
-import os
 import re
 import time
 from datetime import datetime, timezone
 
 from .paths import CONTENT  # imported first: puts ml/ on sys.path
-import baseline  # noqa: E402  (ml/baseline.py - the project's Gemini client)
-from relearn_ml import references  # noqa: E402
+from relearn_ml import llm, references  # noqa: E402  (llm = the shared Gemini client)
 from . import db  # noqa: E402
 from .concept import call_text, fmt  # noqa: E402
 from .diagnoser import is_no_attempt  # noqa: E402
@@ -24,18 +22,13 @@ FALLBACK = {k: v for k, v in json.loads((CONTENT / "hints_fallback.json").read_t
 MISC = json.loads((CONTENT / "misconceptions.json").read_text(encoding="utf-8"))
 MAX_WORDS = 60
 NO_HINT_MSG = "All tests pass, no hint needed."
-LLM_TIMEOUT_S = 12
 LEVEL_RULES = {
     1: "Point to WHERE the issue is: which part of the code or which idea to look at. Concept only - do not write any code.",
     2: "Explain WHAT is wrong and WHY it gives the wrong result. Explain in words; do not write code lines.",
     3: "Give a small code nudge: at most 1-2 lines of code that show the idea of the fix. Never the full solution.",
 }
 STMT = re.compile(r"^\s*(def|for|while|if|elif|else|return|print|import|class|try|except)\b")
-_MODEL = {}
-
-
-class NoKey(Exception):
-    pass
+HINT_SCHEMA = {"type": "OBJECT", "properties": {"hint": {"type": "STRING"}}, "required": ["hint"]}
 
 
 class Reject(Exception):
@@ -104,7 +97,7 @@ def check_hint(raw, level, problem):
     return text
 
 
-# ------------------------------------------------------------------ LLM (existing Gemini client from ml/baseline.py)
+# ------------------------------------------------------------------ LLM (the shared client in relearn_ml/llm.py)
 def build_prompt(problem, code, level, situation, summary, likely, error):
     rules = [f"Maximum {MAX_WORDS} words.", "Never output the complete solution or a full working function.",
              "Be encouraging and specific to THIS learner's code; no headings or bullet lists.",
@@ -124,18 +117,10 @@ def build_prompt(problem, code, level, situation, summary, likely, error):
 
 
 def llm_hint(prompt):
-    key = baseline.read_key()
-    if not key:
-        raise NoKey()
-    base = os.environ.get("GEMINI_API_BASE", baseline.DEFAULT_BASE).rstrip("/")
-    if base not in _MODEL:
-        _MODEL[base] = baseline.pick_model(base, key)
-    body = {"contents": [{"parts": [{"text": prompt}]}],
-            "generationConfig": {"temperature": 0.4, "maxOutputTokens": 220, "responseMimeType": "application/json",
-                                 "responseSchema": {"type": "OBJECT", "properties": {"hint": {"type": "STRING"}}, "required": ["hint"]}}}
-    out = baseline._http(f"{base}/v1beta/models/{_MODEL[base]}:generateContent", key, body, retries=1, timeout=LLM_TIMEOUT_S)
-    text = out["candidates"][0]["content"]["parts"][0]["text"]
-    return json.loads(text)["hint"]
+    hint = llm.generate_json(prompt, HINT_SCHEMA).get("hint")
+    if not isinstance(hint, str):
+        raise llm.LLMError("bad_response", "no 'hint' string in the answer")
+    return hint
 
 
 # ------------------------------------------------------------------ static fallback
@@ -182,11 +167,11 @@ def get_hint(problem, code, level, learner_id, run, diagnose=None):
         text = check_hint(llm_hint(build_prompt(problem, code, level, situation, summary, likely, error)), level, problem)
         db.log_hint(learner_id, problem["id"], level, "llm", None, label, situation)
         return dict(level=level, hint=text, source="llm")
-    except NoKey:
-        reason = "no_api_key"
+    except llm.LLMError as e:  # no_api_key / rate_limited / overloaded / timeout / api_error / bad_response
+        reason = str(e)
     except Reject as e:
         reason = f"guardrail_rejected: {e}"
-    except Exception as e:  # network error, bad JSON, HTTP error, timeout ...
+    except Exception as e:  # anything unexpected must still end in a usable hint
         reason = f"api_error: {type(e).__name__}: {e}"
     # every fallback is logged (backend log + hint_events table) with why it happened
     log.warning("hint FALLBACK problem=%s level=%d situation=%s reason=%s learner=%s", problem["id"], level, situation, reason, learner_id or "anon")
@@ -200,17 +185,15 @@ STARTED = time.time()
 
 def status():
     """Whether AI hints can work right now, and why not. Never includes the key itself."""
-    src = baseline.key_source()
-    base = os.environ.get("GEMINI_API_BASE", baseline.DEFAULT_BASE).rstrip("/")
-    return dict(llm_configured=bool(src), key_source=src,
-                places_checked=["environment variable GEMINI_API_KEY"] + [f.relative_to(baseline.ROOT.parent).as_posix() for f in baseline.env_files()],
-                model=os.environ.get("GEMINI_MODEL") or _MODEL.get(base), backend_started_at=datetime.fromtimestamp(STARTED, timezone.utc).isoformat(),
-                fallback_reasons=db.hint_reasons())
+    s = llm.status()
+    return dict(llm_configured=s["configured"], key_source=s["key_source"], places_checked=s["places_checked"], dotenv_loaded=s["dotenv_loaded"],
+                model=s["model"], last_model_version=s["last_model_version"], timeout_s=s["timeout_s"],
+                backend_started_at=datetime.fromtimestamp(STARTED, timezone.utc).isoformat(), fallback_reasons=db.hint_reasons())
 
 
 def log_startup():
     s = status()
     if s["llm_configured"]:
-        log.warning("hint: AI hints ENABLED (GEMINI_API_KEY found in %s)", s["key_source"])
+        log.warning("hint: AI hints ENABLED (GEMINI_API_KEY found in %s, model %s, timeout %gs)", s["key_source"], s["model"], s["timeout_s"])
     else:
         log.warning("hint: AI hints DISABLED - no GEMINI_API_KEY in %s; the Hint button serves built-in hints", ", ".join(s["places_checked"]))

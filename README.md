@@ -286,7 +286,7 @@ cd ..\ml;  .\.venv\Scripts\python -m relearn_ml.generate   # regenerate the data
 | `VITE_API_URL` | client (`client\.env`) | backend base URL; defaults to `http://localhost:8000` |
 | `CORS_ORIGINS` | server | extra allowed origins, comma-separated (localhost and `*.vercel.app` are always allowed) |
 | `RELEARN_DB` | server | SQLite path (default `server\relearn.db`) |
-| `GEMINI_API_KEY` | environment, `ml/.env`, `.env` or `server/.env` | enables the AI **Hint** button (`POST /hint`) and `ml/baseline.py`. Read on every request, so adding it needs no restart. Without it hints are built-in; `GET /hint-status` says whether the key was found and `.run/backend.err.log` logs why each fallback happened. `GEMINI_MODEL` optionally pins the model |
+| `GEMINI_API_KEY` | `ml/.env` (or the environment, `.env`, `server/.env`) | enables AI **hints** and AI-written **concept checks** through one shared client (`ml/relearn_ml/llm.py`, loaded with python-dotenv). Default model `gemini-flash-latest` (`GEMINI_MODEL` overrides), 10 s timeout (`RELEARN_LLM_TIMEOUT`), one attempt: on 429 / 503 / timeout / any API error the built-in hint or the verified built-in question is used and the reason is logged. `GET /hint-status` shows whether the key was found (never the key) |
 
 ### Troubleshooting
 
