@@ -236,7 +236,7 @@ def test_hints_and_concept_checks_share_one_llm_client():
     assert not hasattr(hint, "baseline"), "hints no longer use the offline baseline script's HTTP helper"
 
 
-# ------------------------------------------------------------------ free tier: one attempt, 10 s timeout, precise reasons
+# ------------------------------------------------------------------ free tier: one attempt, 15 s default timeout, precise reasons
 @pytest.mark.parametrize("status,reason", [(429, "rate_limited"), (503, "overloaded"), (500, "api_error"), (403, "api_error")])
 def test_api_errors_fall_back_immediately_with_a_reason(c, llm, status, reason):
     llm.reply = staticmethod(lambda p: ("status", status))
@@ -256,8 +256,8 @@ def test_slow_api_times_out_and_falls_back(c, llm, monkeypatch):
     assert h["source"] == "fallback" and h["reason"] == "timeout" and time.time() - t < 1.4
 
 
-def test_default_timeout_is_10_seconds(c):
-    assert c.get("/hint-status").json()["timeout_s"] == 10
+def test_default_timeout_is_15_seconds(c):
+    assert c.get("/hint-status").json()["timeout_s"] == 15
 
 
 def test_model_without_thinking_levels_is_retried_once_without_them(c, llm):
@@ -343,7 +343,7 @@ def test_hint_status_reports_whether_the_key_is_found(c, nokey, llm, monkeypatch
     assert s["llm_configured"] is False and s["key_source"] is None
     assert s["places_checked"][0] == "environment variable GEMINI_API_KEY" and s["places_checked"][1:] == []  # RELEARN_NO_DOTENV=1 here
     assert s["backend_started_at"] and isinstance(s["fallback_reasons"], dict)
-    assert s["model"] == "gemini-flash-latest" and s["timeout_s"] == 10
+    assert s["model"] == "gemini-flash-latest" and s["timeout_s"] == 15
     monkeypatch.setenv("GEMINI_API_KEY", "super-secret-value")
     s = c.get("/hint-status").json()
     assert s["llm_configured"] is True and s["key_source"] == "environment variable"
@@ -365,3 +365,9 @@ def test_key_in_ml_dotenv_is_found_without_restarting(c, llm, monkeypatch, tmp_p
     assert "abc-123" not in json.dumps(s), "the key itself is never exposed"
     after = ask(c, 1, PRINT_CODE, learner="dotenv")  # same running backend, no restart
     assert after["source"] == "llm" and llm.keys[-1] == "abc-123"
+
+
+@pytest.mark.parametrize("value,expected", [("15", 15), ("20", 20), ("0.5", 0.5), ("abc", 15), ("0", 15), ("-3", 15)])
+def test_timeout_setting_is_read_and_bad_values_fall_back_to_15(c, monkeypatch, value, expected):
+    monkeypatch.setenv("RELEARN_LLM_TIMEOUT", value)
+    assert c.get("/hint-status").json()["timeout_s"] == expected

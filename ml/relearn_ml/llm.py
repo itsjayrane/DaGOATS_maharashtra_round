@@ -3,7 +3,7 @@
 - Key: GEMINI_API_KEY from the environment, or from ml/.env, .env or server/.env (python-dotenv; real environment
   variables always win). Files are re-read on every call, so adding a key needs no restart.
 - Model: GEMINI_MODEL, else "gemini-flash-latest" (Google's alias for the current Flash model). No model-listing call.
-- Free tier: one attempt, 10 s timeout (RELEARN_LLM_TIMEOUT), no retries. Every failure raises LLMError with a reason:
+- Free tier: one attempt, 15 s timeout (RELEARN_LLM_TIMEOUT, default 15), no retries. Every failure raises LLMError with a reason:
   no_api_key, rate_limited (429), overloaded (503), timeout, api_error (other HTTP / network), bad_response.
   Callers fall back to built-in content and log the reason. The key is never logged or returned.
 """
@@ -76,8 +76,16 @@ def model():
     return os.environ.get("GEMINI_MODEL") or DEFAULT_MODEL
 
 
+DEFAULT_TIMEOUT_S = 15.0
+
+
 def timeout_s():
-    return float(os.environ.get("RELEARN_LLM_TIMEOUT", "10"))
+    """RELEARN_LLM_TIMEOUT (seconds; from the environment or ml/.env), default 15. A bad value falls back to the default."""
+    try:
+        t = float(os.environ.get("RELEARN_LLM_TIMEOUT", DEFAULT_TIMEOUT_S))
+    except ValueError:
+        return DEFAULT_TIMEOUT_S
+    return t if t > 0 else DEFAULT_TIMEOUT_S
 
 
 def status():
