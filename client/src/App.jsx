@@ -2,6 +2,7 @@ import { NavLink, Route, Routes } from 'react-router-dom'
 import Dashboard from './pages/Dashboard'
 import Eval from './pages/Eval'
 import Home from './pages/Home'
+import Teach from './pages/Teach'
 import { ServerBanner, ServerHealthProvider } from './components/ServerHealth'
 
 const link = ({ isActive }) =>
@@ -18,6 +19,7 @@ export default function App() {
             <NavLink to="/" end className={link}>Practice</NavLink>
             <NavLink to="/dashboard" className={link}>Dashboard</NavLink>
             <NavLink to="/eval" className={link}>Eval</NavLink>
+            <NavLink to="/teach" className={link}>Teach</NavLink>
           </nav>
         </div>
       </header>
@@ -27,6 +29,7 @@ export default function App() {
           <Route path="/" element={<Home />} />
           <Route path="/dashboard" element={<Dashboard />} />
           <Route path="/eval" element={<Eval />} />
+          <Route path="/teach" element={<Teach />} />
           <Route path="*" element={<p className="text-muted">Page not found.</p>} />
         </Routes>
       </main>

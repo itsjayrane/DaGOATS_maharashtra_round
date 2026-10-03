@@ -9,7 +9,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import FileResponse
 from pydantic import BaseModel, Field
 
-from . import concept, db, explain, hint, ratelimit, sandbox
+from . import concept, custom, db, explain, hint, ratelimit, sandbox
 from .diagnoser import DiagnoserService
 from relearn_ml import fixer, references
 from .paths import CONTENT, DOCS, MODEL_PATH
@@ -54,15 +54,25 @@ def full_label(m: str) -> str:
 
 
 def get_problem(pid: str) -> dict:
-    if pid not in PROBLEMS:
+    if pid in PROBLEMS:
+        return PROBLEMS[pid]
+    p = custom.get(pid) if pid.startswith("custom-") else None
+    if p is None:
         raise HTTPException(404, f"Unknown problem '{pid}'")
-    return PROBLEMS[pid]
+    return p
+
+
+def refs_for(p):
+    """Verified reference solutions: the built-in variants, or the teacher's own reference for a custom problem."""
+    return [p["reference"]] if p.get("custom") else references.reference_variants()[p["id"]]
 
 
 def public_problem(p, with_example=True):
     t = p["tests"][0]
     out = dict(id=p["id"], title=p["title"], prompt=p["prompt"], function=p["fn"], params=p["params"], starter=p["starter"],
                misconceptions_possible=p["tags"], n_tests=len(p["tests"]))
+    if p.get("custom"):
+        out.update(custom=True, badge=custom.BADGE)
     if with_example:
         out["example"] = dict(args=t["args"], expected=t["expected"])
     return out
@@ -82,7 +92,7 @@ def health():
 
 @app.get("/problems")
 def problems():
-    return [public_problem(p) for p in PROBLEMS.values()]
+    return [public_problem(p) for p in PROBLEMS.values()] + [public_problem(p) for p in custom.all_problems()]
 
 
 class DiagnoseIn(BaseModel):
@@ -96,9 +106,9 @@ def diagnose(body: DiagnoseIn, request: Request):
     ratelimit.check(request, "diagnose", body.learner_id)
     p = get_problem(body.problem_id)
     res = sandbox.run(body.code, p)
-    d = svc().diagnose(body.code, p, res)
+    d = svc().diagnose(body.code, p, res, strict=bool(p.get("custom")))
     passed = res["status"] == "ok" and all(t["ok"] for t in res["tests"])
-    out = dict(label=d["label"], confidence=d["confidence"], evidence=d["evidence"], test_results=clean_tests(res),
+    out = dict(in_distribution=not p.get("custom"), label=d["label"], confidence=d["confidence"], evidence=d["evidence"], test_results=clean_tests(res),
                passed=passed, status=res["status"], error=res.get("error") or d.get("error"), probabilities=d["probabilities"],
                ambiguous=d["ambiguous"], runner_up=d["runner_up"], verdict=d["verdict"], unknown=d["unknown"],
                unknown_reason=d["unknown_reason"], closest_guess=d["closest_guess"])
@@ -129,12 +139,12 @@ def intervene(body: IntervenIn, request: Request):
     if body.problem_id and body.code is not None and SVC is not None:
         p = get_problem(body.problem_id)
         res = sandbox.run(body.code, p)
-        d = SVC.diagnose(body.code, p, res)
+        d = SVC.diagnose(body.code, p, res, strict=bool(p.get("custom")))
         if res["status"] == "ok" and d["unknown"]:  # never a canned lesson for an unknown bug: explain what happened instead
             guess = (d.get("closest_guess") or {}).get("label")
             return dict(label=d["label"], unknown=True, unknown_reason=d["unknown_reason"], closest_guess=d["closest_guess"],
                         intervention=None, personalized=None,
-                        explain=explain.explain(p, body.code, sandbox.run, [guess] if guess else None, references.reference_variants()[p["id"]][0]))
+                        explain=explain.explain(p, body.code, sandbox.run, [guess] if guess else None, refs_for(p)[0]))
     if body.label.upper() == "CORRECT":
         return dict(label="CORRECT", intervention=None, message="No misconception detected - nothing to remediate.")
     m = full_label(body.label)
@@ -143,7 +153,7 @@ def intervene(body: IntervenIn, request: Request):
     if body.problem_id and body.code is not None:
         p = get_problem(body.problem_id)
         # minimal fix of THEIR code, verified in the sandbox against the problem's tests; falls back to the reference solution
-        out["personalized"] = fixer.personalize(body.code, p, m, sandbox.run, references.reference_variants()[p["id"]])
+        out["personalized"] = fixer.personalize(body.code, p, m, sandbox.run, refs_for(p))
         # problem-specific concept check built from the problem, the learner's code and the misconception (pool fallback, logged)
         q, src = concept.for_learner(p, body.code, m, sandbox.run, body.learner_id)
         out["intervention"] = {**c["intervention"], "predict": q}
@@ -309,6 +319,35 @@ def explain_endpoint(body: ExplainIn, request: Request):
     p = get_problem(body.problem_id)
     order = None
     if SVC is not None:
-        d = SVC.diagnose(body.code, p, sandbox.run(body.code, p))
+        d = SVC.diagnose(body.code, p, sandbox.run(body.code, p), strict=bool(p.get("custom")))
         order = [x for x in (d.get("label"), (d.get("closest_guess") or {}).get("label")) if x]
-    return explain.explain(p, body.code, sandbox.run, order, references.reference_variants()[p["id"]][0])
+    return explain.explain(p, body.code, sandbox.run, order, refs_for(p)[0])
+
+
+class CustomTest(BaseModel):
+    input: Union[list, int, float, str, bool, None] = Field(default=None)
+    expected: Optional[Union[list, int, float, str, bool]] = None
+
+
+class CustomProblemIn(BaseModel):
+    statement: str = Field(max_length=2000)
+    function_name: str = Field(max_length=41)
+    reference_solution: str = Field(max_length=MAX_CODE_CHARS)
+    tests: Optional[list[CustomTest]] = None
+
+
+@app.post("/custom/problems")
+def create_custom_problem(body: CustomProblemIn, request: Request):
+    """A teacher adds a problem (no AI): the reference runs in the sandbox; missing expected values come from its output."""
+    ratelimit.check(request, "custom")
+    tests = [t.model_dump(exclude_unset=True) for t in (body.tests or [])]
+    p = custom.build(body.statement, body.function_name, body.reference_solution, tests, sandbox.run)
+    custom.save(p)
+    return dict(public_problem(p), tests=[dict(input=t["args"], expected=t["expected"]) for t in p["tests"]],
+                param_types=p["param_types"], return_type=p["return_type"], checks=p["checks"])
+
+
+@app.get("/custom/problems")
+def list_custom_problems(request: Request):
+    ratelimit.check(request, "custom")
+    return [public_problem(p) for p in custom.all_problems()]

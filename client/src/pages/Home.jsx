@@ -36,9 +36,9 @@ export default function Home() {
   useEffect(() => {
     if (!healthy) return // wait until the server is awake
     api.problems()
-      .then((ps) => { setProblems(ps); const p = ps.find((x) => x.id === 'sum_list') || ps[0]; setPid(p.id); setCode(p.starter) })
+      .then((ps) => { setProblems(ps); const p = ps.find((x) => x.id === params.get('problem')) || ps.find((x) => x.id === 'sum_list') || ps[0]; setPid(p.id); setCode(p.starter) })
       .catch((e) => setError(e.message))
-  }, [healthy])
+  }, [healthy]) // eslint-disable-line react-hooks/exhaustive-deps
 
   useEffect(() => { pidRef.current = pid }, [pid])
 
@@ -96,8 +96,9 @@ export default function Home() {
           <label htmlFor="problem" className="text-sm text-muted">Problem</label>
           <select id="problem" value={pid} onChange={(e) => pick(e.target.value)}
             className="rounded-lg border border-line bg-raised px-3 py-2 text-sm text-ink">
-            {problems.map((p) => <option key={p.id} value={p.id}>{p.title}</option>)}
+            {problems.map((p) => <option key={p.id} value={p.id}>{p.title}{p.custom ? ' (custom)' : ''}</option>)}
           </select>
+          {problem?.badge && <Pill tone="info">{problem.badge}</Pill>}
         </div>
         {problem && (
           <div className="mb-4">

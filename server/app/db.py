@@ -31,6 +31,7 @@ def init():
         CREATE TABLE IF NOT EXISTS hint_events(id INTEGER PRIMARY KEY AUTOINCREMENT, ts REAL, learner_id TEXT, problem_id TEXT, level INTEGER,
             source TEXT, reason TEXT, misconception TEXT, situation TEXT);
         CREATE INDEX IF NOT EXISTS ix_hint ON hint_events(learner_id, ts);
+        CREATE TABLE IF NOT EXISTS custom_problems(id TEXT PRIMARY KEY, created REAL, problem TEXT);
         """)
     if os.environ.get("RELEARN_SEED_DEMO") == "1":
         seed_demo()
