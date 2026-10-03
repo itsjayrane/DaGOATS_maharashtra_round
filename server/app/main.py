@@ -6,6 +6,7 @@ from typing import Optional, Union
 
 from fastapi import FastAPI, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi.responses import FileResponse
 from pydantic import BaseModel
 
 from . import db, sandbox
@@ -179,7 +180,7 @@ def reassess(body: ReassessIn):
     resolved = all(r["passed"] for r in reasons)
 
     def upd(v, was):
-        return (v + (1 - v) * 0.6, True) if resolved else (v * 0.85, False)
+        return (max(v + (1 - v) * 0.6, 0.8), True) if resolved else (v * 0.85, False)  # a verified resolution always lands in the "good" band
     after = db.record(body.learner_id, "reassess", p["id"], d["label"], d["confidence"], passed, body.code,
                       dict(reasons=reasons, concept_id=q["id"], concept_answer=body.concept_answer),
                       misconception=m, resolved=resolved, update=upd)
@@ -204,3 +205,11 @@ def metrics():
     if not f.exists():
         raise HTTPException(404, "metrics.json missing: run `cd ml && python train.py`")
     return json.loads(f.read_text(encoding="utf-8"))
+
+
+@app.get("/metrics/confusion-matrix")
+def confusion_matrix_png():
+    f = DOCS / "confusion_matrix.png"
+    if not f.exists():
+        raise HTTPException(404, "confusion_matrix.png missing: run `cd ml && python train.py`")
+    return FileResponse(f, media_type="image/png")

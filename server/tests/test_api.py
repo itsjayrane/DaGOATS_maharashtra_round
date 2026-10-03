@@ -153,3 +153,8 @@ def test_failed_reassess_lowers_mastery_and_clears_resolved(c):
 def test_metrics(c):
     r = c.get("/metrics").json()
     assert "holdout" in r and "accuracy" in r["holdout"] and "twin_pairs" in r["holdout"] and "caveat" in r
+
+
+def test_confusion_matrix_image(c):
+    r = c.get("/metrics/confusion-matrix")
+    assert r.status_code == 200 and r.headers["content-type"] == "image/png" and r.content[:4] == bytes([0x89]) + b"PNG"
