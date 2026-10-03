@@ -231,3 +231,61 @@ def test_teacher_path_keeps_the_teacher_badge_and_validates_source(c):
     a = c.post("/custom/problems", json={**body, "source": "ai_draft"}).json()
     assert a["badge"] == custom.BADGE_AI and a["source"] == "ai_draft"
     assert c.post("/custom/problems", json={**body, "source": "robot"}).status_code == 422
+
+
+# ---------------------------------------------------------------- Groq / provider hardening
+import io, logging
+
+
+def http_error(code, etype="invalid_request_error", ecode="invalid_api_key"):
+    body = json.dumps({"error": {"message": f"Invalid API Key {KEY} - raw provider text", "type": etype, "code": ecode}}).encode()
+    return urllib.error.HTTPError("https://llm.example.test/v1/chat/completions", code, "provider says no", {}, io.BytesIO(body))
+
+
+def test_user_agent_and_accept_headers_are_sent(c, llm):
+    fake = llm(draft_json())
+    assert c.post("/custom/practice", json={"statement": QUESTION}).status_code == 200
+    h = fake.calls[0]["headers"]
+    assert h["User-Agent"] == "relearn/1.0" and h["Accept"] == "application/json", "Cloudflare blocks the Python-urllib agent"
+    assert draft.BUDGET_S == 25.0
+
+
+@pytest.mark.parametrize("err,status", [(http_error(401), "HTTP 401"), (http_error(403), "HTTP 403"),
+                                        (http_error(404, "not_found_error", "model_not_found"), "HTTP 404"),
+                                        (socket.timeout("timed out"), "failed (TimeoutError)")])
+def test_provider_errors_are_logged_by_status_only(c, llm, caplog, err, status):
+    caplog.set_level(logging.INFO, logger="relearn.draft")
+    llm(err)
+    r = no_secrets(c.post("/custom/practice", json={"statement": QUESTION}))
+    assert r.status_code == 502 and r.json()["detail"] == draft.MSG_DOWN
+    assert "raw provider text" not in r.text and "provider says no" not in r.text
+    logs = caplog.text
+    assert status in logs and "attempt 1" in logs and " ms" in logs
+    assert KEY not in logs and "Bearer" not in logs and "raw provider text" not in logs and "Invalid API Key" not in logs
+    if isinstance(err, urllib.error.HTTPError):
+        assert "type=" in logs and "code=" in logs and "invalid_api_key" in logs or "model_not_found" in logs
+
+
+def test_gpt_oss_gets_reasoning_low_and_falls_back_without_it_on_400(c, llm, monkeypatch):
+    monkeypatch.setenv("LLM_MODEL", "openai/gpt-oss-120b")
+    fake = llm(http_error(400, "invalid_request_error", "unsupported_parameter"), draft_json())
+    r = c.post("/custom/practice", json={"statement": QUESTION})
+    assert r.status_code == 200 and r.json()["attempts"] == 1
+    first, second = fake.calls[0]["payload"], fake.calls[1]["payload"]
+    assert first["reasoning_effort"] == "low" and first["max_tokens"] == 4000
+    assert "reasoning_effort" not in second and second["max_tokens"] == 4000
+    assert fake.calls[1]["timeout"] <= fake.calls[0]["timeout"], "the retry shares the same budget"
+
+
+def test_a_400_without_reasoning_effort_is_not_retried(c, llm):
+    fake = llm(http_error(400), draft_json())
+    r = no_secrets(c.post("/custom/practice", json={"statement": QUESTION}))
+    assert r.status_code == 502 and len(fake.calls) == 1 and "reasoning_effort" not in fake.calls[0]["payload"]
+
+
+@pytest.mark.parametrize("empty", [reply(""), {"choices": [{"message": {"role": "assistant", "content": None, "reasoning": "thinking..."}}]}])
+def test_empty_content_triggers_a_repair_round_not_a_502(c, llm, empty):
+    fake = llm(empty, draft_json())
+    r = c.post("/custom/practice", json={"statement": QUESTION})
+    assert r.status_code == 200 and r.json()["attempts"] == 2
+    assert "empty" in fake.calls[1]["payload"]["messages"][-1]["content"]

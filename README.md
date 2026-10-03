@@ -247,7 +247,7 @@ AST structure is the strongest single group and execution adds to it. "Task flag
 A learner types any beginner Python question ("return the second largest distinct number in a list, or None") and gets a problem to solve, checked exactly like the built-in ones. The AI only **writes the problem**; it never grades:
 
 1. A **free OpenAI-compatible LLM** (Groq, Gemini, OpenRouter or a local Ollama) drafts `{function_name, reference_solution, test inputs, assumptions}` ([`server/app/draft.py`](server/app/draft.py), stdlib `urllib`, no SDK). The question is sent wrapped in `<question>` tags and the system prompt says it is data, not instructions.
-2. **Expected outputs never come from the model**: any it sends are dropped, and the reference is **run in the sandbox** (`custom.build`, the same path as teacher problems). A draft that does not parse, does not run, mutates its input or has too few tests is sent back with the grader's error ("The grader rejected this draft: …") - at most 3 attempts inside a **20 s total budget** (each call's timeout is the time left), then a friendly "try rewording" message.
+2. **Expected outputs never come from the model**: any it sends are dropped, and the reference is **run in the sandbox** (`custom.build`, the same path as teacher problems). A draft that does not parse, does not run, mutates its input or has too few tests is sent back with the grader's error ("The grader rejected this draft: …") - at most 3 attempts inside a **25 s total budget** (each call's timeout is the time left), then a friendly "try rewording" message.
 3. **Checking the learner's code is unchanged and offline**: hidden tests, LightGBM diagnosis (`in_distribution: false`, stricter abstention), explanation card and curated hints. No LLM is involved.
 4. **The solution stays hidden** until the learner asks ("Show solution" first offers a hint) or passes every test ("Compare with our solution"). Explanations never show it as "best solution", and every reveal is logged (`solution_revealed`).
 5. Keys and raw provider errors are never logged or returned; failures become friendly 502 / 503 messages (429 → "free AI limit reached").
@@ -410,7 +410,7 @@ All changes are additive; existing fields keep their meaning.
 
 Limits: code ≤ 20,000 characters; questions ≤ 2,000; per-minute rate limits (hint 10, diagnose 30, intervene 30, custom 5, draft 5, practice 5, solution 20) per IP and per learner.
 
-In production the browser calls **`/api/...` on the Vercel origin**; `client/vercel.json` rewrites it to the Render backend, so ad blockers that block cross-site requests (`net::ERR_BLOCKED_BY_CLIENT`) do not break the app. Requests must finish well under Vercel's proxy time limit, which is why drafting has a 20 s total budget.
+In production the browser calls **`/api/...` on the Vercel origin**; `client/vercel.json` rewrites it to the Render backend, so ad blockers that block cross-site requests (`net::ERR_BLOCKED_BY_CLIENT`) do not break the app. Requests must finish well under Vercel's proxy time limit, which is why drafting has a 25 s total budget.
 
 ## Repo layout
 

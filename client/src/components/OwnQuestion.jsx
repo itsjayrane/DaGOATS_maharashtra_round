@@ -35,7 +35,7 @@ export function OwnQuestionCard({ learnerId, healthy, onCreated }) {
         <span className="text-xs text-muted">{text.trim().length < MIN ? `At least ${MIN} characters.` : `${text.length} / 2000`}</span>
         <Button onClick={create} disabled={!healthy || busy || !ok}>{busy ? 'Working…' : 'Create my problem'}</Button>
       </div>
-      {busy && <p className="mt-3 text-sm text-muted" role="status">Writing and checking your problem… (up to 20 s)</p>}
+      {busy && <p className="mt-3 text-sm text-muted" role="status">Writing and checking your problem… (up to 25 s)</p>}
       <div className="mt-3"><ErrorNote error={error} /></div>
       {made && (
         <div className="mt-3 rounded-lg border border-good/40 bg-good/10 p-3 text-sm" data-testid="own-made" role="status">

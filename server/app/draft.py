@@ -24,7 +24,8 @@ from . import custom
 
 log = logging.getLogger("relearn.draft")
 
-BUDGET_S = 20.0      # total time for all attempts (Vercel's proxy limit is ~25 s)
+BUDGET_S = 25.0      # total time for all attempts (per-call timeout = remaining budget)
+USER_AGENT = "relearn/1.0"
 MAX_ATTEMPTS = 3
 MIN_CALL_S = 2.0     # do not start another call with less than this left
 MIN_STATEMENT = 10
@@ -85,25 +86,58 @@ def http_post(url, payload, headers, timeout):
         return json.loads(r.read().decode("utf-8"))
 
 
-def _call(messages, post, timeout):
+def _provider_error_fields(e):
+    """The provider's error 'type' / 'code' only (OpenAI-style {"error": {...}}), sanitised; never the message or body."""
+    try:
+        err = json.loads(e.read().decode("utf-8", "replace")).get("error") or {}
+    except Exception:  # noqa: BLE001 - no body, not JSON, already read...
+        return "-", "-"
+    clean = lambda v: re.sub(r"[^A-Za-z0-9_.-]", "", str(v))[:40] or "-" if v is not None else "-"
+    return clean(err.get("type")), clean(err.get("code"))
+
+
+def _is_reasoning_model(model):
+    return "gpt-oss" in model.lower()
+
+
+def _call(messages, post, timeout, attempt=1):
+    """One chat completion. Logs status / error class / provider error type+code / elapsed ms / attempt - never the key,
+    the Authorization header or a response body. Raises HTTPException(502) with a generic message on failure."""
     base, model, key = config()
-    headers = {"Content-Type": "application/json"}
+    headers = {"Content-Type": "application/json", "Accept": "application/json",
+               "User-Agent": USER_AGENT}  # Cloudflare (in front of Groq) blocks the default Python-urllib agent
     if key:
         headers["Authorization"] = f"Bearer {key}"
     payload = dict(model=model, messages=messages, temperature=0.2, max_tokens=2000)
+    if _is_reasoning_model(model):  # gpt-oss spends tokens on reasoning first: more room, less reasoning
+        payload.update(max_tokens=4000, reasoning_effort="low")
+    deadline = time.monotonic() + timeout
+    while True:
+        t0 = time.monotonic()
+        try:
+            data = post(f"{base}/chat/completions", payload, headers, max(0.5, deadline - t0))
+            break
+        except urllib.error.HTTPError as e:
+            etype, ecode = _provider_error_fields(e)
+            ms = round((time.monotonic() - t0) * 1000)
+            log.warning("draft: attempt %d HTTP %s (%s) type=%s code=%s %d ms", attempt, e.code, type(e).__name__, etype, ecode, ms)
+            if e.code == 400 and "reasoning_effort" in payload and deadline - time.monotonic() > MIN_CALL_S:
+                payload = {k: v for k, v in payload.items() if k != "reasoning_effort"}  # unsupported here: retry once without
+                log.warning("draft: attempt %d retrying without reasoning_effort", attempt)
+                continue
+            raise HTTPException(502, MSG_RATE if e.code == 429 else MSG_DOWN) from None
+        except Exception as e:  # noqa: BLE001 - timeouts, DNS, TLS, bad JSON...: one generic message, no raw text
+            ms = round((time.monotonic() - t0) * 1000)
+            log.warning("draft: attempt %d failed (%s) %d ms", attempt, type(e).__name__, ms)
+            raise HTTPException(502, MSG_DOWN) from None
+    log.info("draft: attempt %d HTTP 200 %d ms", attempt, round((time.monotonic() - t0) * 1000))
     try:
-        data = post(f"{base}/chat/completions", payload, headers, timeout)
-    except urllib.error.HTTPError as e:
-        log.warning("draft: provider returned HTTP %s", e.code)  # status only - never the body (may echo the key)
-        raise HTTPException(502, MSG_RATE if e.code == 429 else MSG_DOWN) from None
-    except Exception as e:  # noqa: BLE001 - timeouts, DNS, bad JSON...: one friendly message, no raw text
-        log.warning("draft: provider call failed (%s)", type(e).__name__)
-        raise HTTPException(502, MSG_DOWN) from None
-    try:
-        return data["choices"][0]["message"]["content"] or ""
+        message = data["choices"][0]["message"]
     except (KeyError, IndexError, TypeError):
-        log.warning("draft: provider reply had no message content")
+        log.warning("draft: attempt %d reply had no choices[0].message", attempt)
         raise HTTPException(502, MSG_DOWN) from None
+    # an empty answer (e.g. a reasoning model that used its whole budget thinking) is a parse failure -> repair round
+    return (message.get("content") if isinstance(message, dict) else None) or ""
 
 
 def first_json_object(text):
@@ -140,7 +174,7 @@ class DraftError(ValueError):
 def parse(content):
     raw = first_json_object(content)
     if raw is None:
-        raise DraftError("your reply did not contain a JSON object")
+        raise DraftError("your reply was empty or did not contain a JSON object")
     try:
         d = json.loads(raw)
     except json.JSONDecodeError as e:
@@ -177,7 +211,7 @@ def generate(statement, run, post=None, source="ai_draft", budget_s=BUDGET_S):
         left = deadline - time.monotonic()
         if left < MIN_CALL_S:
             break
-        content = _call(messages, post, timeout=left)
+        content = _call(messages, post, timeout=left, attempt=attempt)
         try:
             d = parse(content)
             if "error" in d:

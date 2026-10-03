@@ -77,7 +77,7 @@ export default function Teach() {
           <textarea id="teach-q" value={question} onChange={(e) => setQuestion(e.target.value)} rows={3} maxLength={2000} className={field}
             placeholder="e.g. Return the second largest distinct number in a list, or None if there isn't one" />
           <div className="mt-3 flex flex-wrap items-center justify-between gap-3">
-            <span className="text-xs text-muted">{drafting ? 'Writing and checking a draft… (up to 20 s)' : 'At least 10 characters.'}</span>
+            <span className="text-xs text-muted">{drafting ? 'Writing and checking a draft… (up to 25 s)' : 'At least 10 characters.'}</span>
             <Button type="button" onClick={draftIt} disabled={!healthy || drafting || question.trim().length < 10}>{drafting ? 'Drafting…' : 'Draft it for me'}</Button>
           </div>
           <div className="mt-3"><ErrorNote error={draftError} /></div>

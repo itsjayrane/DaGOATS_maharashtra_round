@@ -72,7 +72,7 @@ export default function Home() {
 
   useEffect(() => { pidRef.current = pid }, [pid])
 
-  // only after /health answers: the draft call itself can take up to 20 s and must not also wait for a cold start
+  // only after /health answers: the draft call itself can take up to 25 s and must not also wait for a cold start
   useEffect(() => {
     if (!healthy) return
     api.draftStatus().then((s) => setOwnAvailable(!!s.available)).catch(() => setOwnAvailable(false))

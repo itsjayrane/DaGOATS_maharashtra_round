@@ -34,5 +34,5 @@
 The production build then calls `/api/...` on its own origin, and `client/vercel.json` rewrites `/api/:path*` to
 `https://relearn-api-jfka.onrender.com/:path*` (change it if your Render URL differs) before the SPA fallback that serves
 `index.html` for `/dashboard`, `/teach`, `/insights` and `/eval`. Same-origin calls are not blocked by ad blockers. Vercel's proxy has a
-request time limit, so slow calls are budgeted (drafting: 20 s in total). The first request after idle on Render's free plan takes ~30-60 s while the service wakes up;
+request time limit, so slow calls are budgeted (drafting: 25 s in total). The first request after idle on Render's free plan takes ~30-60 s while the service wakes up;
 the app shows a "Waking the server…" banner until `/health` answers.
