@@ -136,7 +136,6 @@ def main():
           "- Held-out problems are written in the same generator style as training ones; real learner code will be messier.",
           "- Reproduce: `cd ml && .venv/Scripts/python -m relearn_ml.generate && .venv/Scripts/python train.py`."]
     (DOCS / "metrics.md").write_text("\n".join(L) + "\n", encoding="utf-8")
-    import baseline; baseline.sync_md()  # keep the "Our model vs Gemini baseline" section (or "not run") in sync
 
     (DOCS / "metrics.json").write_text(json.dumps(dict(
         model="LightGBM multiclass, temperature-calibrated", feature_set=best, temperature=float(T),

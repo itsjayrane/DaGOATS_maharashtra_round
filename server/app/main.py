@@ -76,7 +76,7 @@ def clean_tests(res):
 # ---------------------------------------------------------------- endpoints
 @app.get("/health")
 def health():
-    return dict(ok=True, model_loaded=SVC is not None)
+    return dict(ok=True, model_loaded=SVC is not None, llm="none")
 
 
 @app.get("/problems")
@@ -239,11 +239,8 @@ def confusion_matrix_png():
 
 @app.get("/baseline")
 def baseline():
-    """Zero-shot Gemini comparison written by ml/baseline.py; {"status": "not_run"} when it was not run."""
-    f = DOCS / "baseline.json"
-    if not f.exists():
-        return dict(status="not_run", reason="Baseline has not been run (see ml/baseline.py).")
-    return json.loads(f.read_text(encoding="utf-8"))
+    """Kept for compatibility. The LLM baseline was removed: the app runs fully offline with no external AI."""
+    return dict(status="removed", reason="No LLM is used anywhere; the app runs fully offline.")
 
 
 @app.get("/concept-stats")
@@ -263,7 +260,7 @@ class HintIn(BaseModel):
 
 @app.post("/hint")
 def hint_endpoint(body: HintIn):
-    """Progressive hint: {"level": int, "hint": str, "source": "llm"|"fallback"|"none"}."""
+    """Progressive curated hint: {"level": int, "hint": str, "source": "curated"|"none", "kind": "problem"|"misconception"|"none"}."""
     p = get_problem(body.problem_id)
     return hint.get_hint(p, body.code, body.hint_level, body.learner_id, sandbox.run,
                          diagnose=(lambda code, prob, res: SVC.diagnose(code, prob, res)) if SVC else None)
@@ -277,5 +274,5 @@ def learner_hints(learner_id: str):
 
 @app.get("/hint-status")
 def hint_status():
-    """Is the LLM configured, where the key was found (never the key), when this backend started, why hints fell back."""
+    """Hint configuration: curated and offline (llm: "none")."""
     return hint.status()

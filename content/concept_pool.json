@@ -1,51 +1,43 @@
 {
- "_note": "Fallback concept checks (4 per misconception), used only when a problem-specific question cannot be generated. Separate from misconceptions.json 'concept_questions', which belong to the reassessment flow.",
+ "_note": "Curated concept checks (no AI). Each item is a runnable snippet: the keyed answer equals the LAST line it prints, or the exception name if it raises (verified by a test). 'topics' (list / string / number) lets the server pick an item that matches the problem. Separate from misconceptions.json 'concept_questions', which belong to the reassessment flow.",
  "M1_RANGE_OFF_BY_ONE": [
-  {"question": "for i in range(5):\n    print(i)\n\nWhich numbers are printed?", "options": ["0 1 2 3 4", "1 2 3 4 5", "0 1 2 3 4 5", "1 2 3 4"], "answer": 0, "explanation": "range(5) starts at 0 and stops BEFORE 5."},
-  {"question": "To add the numbers from 1 to 10 inclusive, which loop header is right?", "options": ["for i in range(1, 10):", "for i in range(1, 11):", "for i in range(10):", "for i in range(0, 10):"], "answer": 1, "explanation": "The stop value is excluded, so it must be 11 to include 10."},
-  {"question": "nums = [4, 8, 15]\nfor i in range(len(nums) - 1):\n    print(nums[i])\n\nWhat is printed?", "options": ["4 8", "4 8 15", "8 15", "15"], "answer": 0, "explanation": "len(nums) - 1 is 2, so i is only 0 and 1 - the last item is skipped."},
-  {"question": "How many times does the body of this loop run?\n\nfor i in range(2, 7):\n    ...", "options": ["4", "5", "6", "7"], "answer": 1, "explanation": "i takes the values 2, 3, 4, 5, 6 - the stop value 7 is not included."}
+  {"topics": ["number"], "prompt": "Which numbers are printed?", "code": "for i in range(1, 4):\n    print(i, end=' ')", "options": ["1 2 3", "1 2 3 4", "0 1 2 3", "2 3 4"], "answer": 0, "explanation": "range(1, 4) starts at 1 and stops BEFORE 4."},
+  {"topics": ["list"], "prompt": "What is printed?", "code": "nums = [4, 8, 15]\nfor i in range(len(nums) - 1):\n    print(nums[i], end=' ')", "options": ["4 8", "4 8 15", "8 15", "15"], "answer": 0, "explanation": "len(nums) - 1 is 2, so i is only 0 and 1 - the last item is skipped."},
+  {"topics": ["number"], "prompt": "What is printed?", "code": "count = 0\nfor i in range(2, 7):\n    count += 1\nprint(count)", "options": ["4", "5", "6", "7"], "answer": 1, "explanation": "i takes 2, 3, 4, 5, 6 - the stop value 7 is not included, so the loop runs 5 times."}
  ],
  "M2_INDEX_FROM_ONE": [
-  {"question": "letters = ['a', 'b', 'c', 'd']\nprint(letters[1])", "options": ["'a'", "'b'", "'c'", "IndexError"], "answer": 1, "explanation": "Index 0 is 'a', so index 1 is 'b'."},
-  {"question": "items = [10, 20, 30]\nprint(items[len(items)])", "options": ["30", "20", "IndexError", "None"], "answer": 2, "explanation": "len(items) is 3 but the valid indexes are 0, 1, 2."},
-  {"question": "Which expression gives the LAST item of a list called data?", "options": ["data[len(data)]", "data[len(data) - 1]", "data[1]", "data[0]"], "answer": 1, "explanation": "The last index is len(data) - 1 (or simply data[-1])."},
-  {"question": "scores = [7, 9, 4]\nprint(scores[0] + scores[2])", "options": ["11", "16", "13", "IndexError"], "answer": 0, "explanation": "scores[0] is 7 and scores[2] is 4."}
+  {"topics": ["list"], "prompt": "What is printed?", "code": "letters = ['a', 'b', 'c', 'd']\nprint(letters[1])", "options": ["a", "b", "c", "IndexError"], "answer": 1, "explanation": "Index 0 is 'a', so index 1 is 'b'."},
+  {"topics": ["list"], "prompt": "What happens?", "code": "items = [10, 20, 30]\nprint(items[len(items)])", "options": ["30", "20", "IndexError", "None"], "answer": 2, "explanation": "len(items) is 3, but the valid positions are 0, 1 and 2."},
+  {"topics": ["list", "number"], "prompt": "What is printed?", "code": "scores = [7, 9, 4]\nprint(scores[0] + scores[2])", "options": ["11", "16", "13", "IndexError"], "answer": 0, "explanation": "scores[0] is 7 (the first item) and scores[2] is 4 (the last)."}
  ],
  "M3_PRINT_NOT_RETURN": [
-  {"question": "def add(a, b):\n    print(a + b)\n\nresult = add(2, 3)\nprint(result)\n\nWhat does the LAST line print?", "options": ["5", "None", "23", "an error"], "answer": 1, "explanation": "add prints 5 but returns nothing, so result is None."},
-  {"question": "def total(xs):\n    return sum(xs)\n\nprint(total([1, 2]) * 2)", "options": ["3", "6", "None", "an error"], "answer": 1, "explanation": "total returns 3, which the caller can then multiply by 2."},
-  {"question": "Which function works in the expression y = f(4) + 1 ?", "options": ["def f(n): print(n)", "def f(n): return n * 2", "def f(n): n * 2", "def f(n): print(n * 2)"], "answer": 1, "explanation": "Only a function that returns a number can be used in arithmetic."},
-  {"question": "def f(x):\n    print(x)\n    return x + 1\n\nv = f(1)\n\nWhat is v?", "options": ["1", "2", "None", "(1, 2)"], "answer": 1, "explanation": "print shows 1, but the return value is x + 1 = 2."}
+  {"topics": ["number"], "prompt": "What does the LAST line print?", "code": "def add(a, b):\n    print(a + b)\n\nresult = add(2, 3)\nprint(result)", "options": ["5", "None", "23", "TypeError"], "answer": 1, "explanation": "add only prints 5; it never returns anything, so result is None."},
+  {"topics": ["list", "number"], "prompt": "What is printed?", "code": "def total(xs):\n    return xs[0] + xs[1]\n\nprint(total([1, 2]) * 2)", "options": ["3", "6", "None", "TypeError"], "answer": 1, "explanation": "total returns 3, which the caller can then multiply by 2."},
+  {"topics": ["string"], "prompt": "What does the LAST line print?", "code": "def greet(name):\n    print('Hi ' + name)\n\nmsg = greet('Ada')\nprint(msg)", "options": ["Hi Ada", "None", "greet", "TypeError"], "answer": 1, "explanation": "greet shows 'Hi Ada' on the screen but gives nothing back, so msg is None."}
  ],
  "M4_ACCUMULATOR_RESET": [
-  {"question": "for x in [1, 2, 3]:\n    count = 0\n    count += 1\nprint(count)", "options": ["0", "1", "3", "6"], "answer": 1, "explanation": "count is set back to 0 on every pass, so after the last pass it is 1."},
-  {"question": "total = 10\nfor x in [1, 2]:\n    total = 0\n    total += x\nprint(total)", "options": ["10", "3", "2", "0"], "answer": 2, "explanation": "The reset on every pass wipes everything before the last x, which is 2."},
-  {"question": "Where should `best = 0` go to track the largest number seen in a loop?", "options": ["before the loop", "as the first line inside the loop", "after the loop", "it does not matter"], "answer": 0, "explanation": "A starting value is created once, before the loop, and only updated inside it."},
-  {"question": "for x in [2, 3, 4]:\n    result = 1\n    result *= x\nprint(result)", "options": ["24", "9", "4", "1"], "answer": 2, "explanation": "result restarts at 1 each pass, so only the last x (4) survives."}
+  {"topics": ["list", "number"], "prompt": "What is printed?", "code": "for x in [1, 2, 3]:\n    count = 0\n    count += 1\nprint(count)", "options": ["0", "1", "3", "6"], "answer": 1, "explanation": "count is set back to 0 on every pass, so after the last pass it is 1."},
+  {"topics": ["list", "number"], "prompt": "What is printed?", "code": "total = 10\nfor x in [1, 2]:\n    total = 0\n    total += x\nprint(total)", "options": ["10", "3", "2", "0"], "answer": 2, "explanation": "The reset on every pass wipes everything before the last x, which is 2."},
+  {"topics": ["list", "number"], "prompt": "What is printed?", "code": "for x in [2, 3, 4]:\n    result = 1\n    result *= x\nprint(result)", "options": ["24", "9", "4", "1"], "answer": 2, "explanation": "result restarts at 1 on each pass, so only the last x (4) survives."}
  ],
  "M5_RETURN_IN_LOOP": [
-  {"question": "def first(xs):\n    for x in xs:\n        return x\n\nprint(first([7, 8, 9]))", "options": ["7", "9", "[7, 8, 9]", "None"], "answer": 0, "explanation": "return ends the function during the first pass."},
-  {"question": "def f(xs):\n    t = 0\n    for x in xs:\n        t += x\n        return t\n\nprint(f([1, 2, 3]))", "options": ["6", "1", "3", "None"], "answer": 1, "explanation": "The function returns after adding only the first item."},
-  {"question": "def f(n):\n    for i in range(n):\n        if i == 2:\n            return i\n    return -1\n\nprint(f(5))", "options": ["2", "4", "-1", "0"], "answer": 0, "explanation": "An early return is right here: the first match settles the answer."},
-  {"question": "def has_even(xs):\n    for x in xs:\n        if x % 2 == 0:\n            return True\n        else:\n            return False\n\nprint(has_even([1, 2, 4]))", "options": ["True", "False", "None", "an error"], "answer": 1, "explanation": "The else branch returns False on the very first item (1), before 2 is looked at."}
+  {"topics": ["list"], "prompt": "What is printed?", "code": "def first(xs):\n    for x in xs:\n        return x\n\nprint(first([7, 8, 9]))", "options": ["7", "9", "[7, 8, 9]", "None"], "answer": 0, "explanation": "return ends the function during the first pass of the loop."},
+  {"topics": ["list", "number"], "prompt": "What is printed?", "code": "def f(xs):\n    t = 0\n    for x in xs:\n        t += x\n        return t\n\nprint(f([1, 2, 3]))", "options": ["6", "1", "3", "None"], "answer": 1, "explanation": "The function returns after adding only the first item."},
+  {"topics": ["list"], "prompt": "What is printed?", "code": "def has_even(xs):\n    for x in xs:\n        if x % 2 == 0:\n            return True\n        else:\n            return False\n\nprint(has_even([1, 2, 4]))", "options": ["True", "False", "None", "TypeError"], "answer": 1, "explanation": "The else branch returns False on the very first item (1), before 2 is ever looked at."}
  ],
  "M6_FLOAT_DIVISION": [
-  {"question": "print(9 / 2, 9 // 2)", "options": ["4.5 4", "4 4.5", "4 4", "5 4"], "answer": 0, "explanation": "/ gives the exact quotient, // floors it."},
-  {"question": "total = 7\ncount = 2\nprint(total // count)", "options": ["3.5", "3", "4", "3.0"], "answer": 1, "explanation": "// throws away the .5."},
-  {"question": "Which expression evaluates to 0.25 ?", "options": ["1 // 4", "1 / 4", "int(1 / 4)", "4 // 1"], "answer": 1, "explanation": "Only true division keeps the fractional part."},
-  {"question": "print(int(7 / 2))", "options": ["3.5", "3", "4", "7"], "answer": 1, "explanation": "7 / 2 is 3.5, and int() cuts off the decimals."}
+  {"topics": ["number"], "prompt": "What is printed?", "code": "print(9 // 2)", "options": ["4.5", "4", "5", "4.0"], "answer": 1, "explanation": "// divides and then rounds down, throwing away the .5."},
+  {"topics": ["list", "number"], "prompt": "What is printed?", "code": "total = 7\ncount = 2\nprint(total / count)", "options": ["3", "3.5", "4", "3.0"], "answer": 1, "explanation": "/ keeps the decimals: 7 / 2 is 3.5."},
+  {"topics": ["number"], "prompt": "What is printed?", "code": "print(int(7 / 2))", "options": ["3.5", "3", "4", "7"], "answer": 1, "explanation": "7 / 2 is 3.5, and int() cuts the decimals off."}
  ],
  "M7_STRING_MUTABLE": [
-  {"question": "s = 'dog'\ns = 'D' + s[1:]\nprint(s)", "options": ["'Dog'", "'dog'", "'Dg'", "TypeError"], "answer": 0, "explanation": "Building a NEW string and assigning it back is the correct way to 'change' a string."},
-  {"question": "s = 'hello'\ns[0] = 'J'", "options": ["s becomes 'Jello'", "TypeError", "nothing happens, silently", "IndexError"], "answer": 1, "explanation": "Strings are immutable: item assignment raises TypeError."},
-  {"question": "name = 'ada'\nname.upper()\nprint(name)", "options": ["'ADA'", "'ada'", "'Ada'", "None"], "answer": 1, "explanation": "upper() returns a new string; name itself is unchanged because the result was thrown away."},
-  {"question": "word = 'cat'\nbigger = word.upper()\nprint(word, bigger)", "options": ["cat CAT", "CAT CAT", "cat cat", "CAT cat"], "answer": 0, "explanation": "word is unchanged; bigger holds the new upper-case string."}
+  {"topics": ["string"], "prompt": "What is printed?", "code": "s = 'dog'\ns = 'D' + s[1:]\nprint(s)", "options": ["Dog", "dog", "Dg", "TypeError"], "answer": 0, "explanation": "Building a NEW string and storing it back is how you 'change' a string."},
+  {"topics": ["string"], "prompt": "What happens?", "code": "s = 'hello'\ns[0] = 'J'\nprint(s)", "options": ["Jello", "hello", "TypeError", "IndexError"], "answer": 2, "explanation": "Strings cannot be changed in place, so assigning to s[0] raises TypeError."},
+  {"topics": ["string"], "prompt": "What is printed?", "code": "name = 'ada'\nname.upper()\nprint(name)", "options": ["ADA", "ada", "Ada", "None"], "answer": 1, "explanation": "upper() makes a new string, but nothing stored it - name is unchanged."}
  ],
  "M8_LIST_ALIASING": [
-  {"question": "a = [1, 2]\nb = a\nb.append(3)\nprint(len(a))", "options": ["2", "3", "1", "an error"], "answer": 1, "explanation": "a and b are the same list, so appending through b changes a too."},
-  {"question": "a = [1, 2]\nb = a[:]\nb.append(3)\nprint(a)", "options": ["[1, 2]", "[1, 2, 3]", "[3]", "an error"], "answer": 0, "explanation": "a[:] makes a real copy, so a is unaffected."},
-  {"question": "row = [0, 0]\ngrid = [row, row]\ngrid[0][1] = 5\nprint(grid)", "options": ["[[0, 5], [0, 0]]", "[[0, 5], [0, 5]]", "[[0, 0], [0, 5]]", "[[5, 0], [5, 0]]"], "answer": 1, "explanation": "Both rows are the SAME list, so the change shows in both."},
-  {"question": "def add_one(xs):\n    xs.append(1)\n    return xs\n\ndata = [0]\nnew = add_one(data)\nprint(data)", "options": ["[0]", "[0, 1]", "[1]", "None"], "answer": 1, "explanation": "The function changed the list it was given, so data changed too."}
+  {"topics": ["list"], "prompt": "What is printed?", "code": "a = [1, 2]\nb = a\nb.append(3)\nprint(len(a))", "options": ["2", "3", "1", "TypeError"], "answer": 1, "explanation": "a and b are the same list, so adding through b also changes a."},
+  {"topics": ["list"], "prompt": "What is printed?", "code": "a = [1, 2]\nb = a[:]\nb.append(3)\nprint(a)", "options": ["[1, 2]", "[1, 2, 3]", "[3]", "TypeError"], "answer": 0, "explanation": "a[:] makes a real copy, so a is not affected."},
+  {"topics": ["list"], "prompt": "What is printed?", "code": "row = [0, 0]\ngrid = [row, row]\ngrid[0][1] = 5\nprint(grid)", "options": ["[[0, 5], [0, 0]]", "[[0, 5], [0, 5]]", "[[0, 0], [0, 5]]", "[[5, 0], [5, 0]]"], "answer": 1, "explanation": "Both rows are the SAME list, so the change shows up in both."}
  ]
 }

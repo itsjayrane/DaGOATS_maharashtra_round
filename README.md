@@ -41,7 +41,7 @@ flowchart LR
   subgraph FE["Client - React + Vite + Tailwind + Monaco"]
     P["/ Practice<br/>editor, diagnosis, intervention, Prove it"]
     D["/dashboard<br/>mastery bars, history"]
-    E["/eval<br/>metrics, confusion matrix, baseline"]
+    E["/eval<br/>metrics, confusion matrix"]
   end
   subgraph BE["Server - FastAPI"]
     API["REST API<br/>/diagnose /intervene /transfer /reassess /learner /metrics"]
@@ -55,7 +55,6 @@ flowchart LR
     GEN["generate.py<br/>templates -> samples<br/>labels verified by execution"]
     TR["train.py<br/>hold out 4 problems,<br/>model selection, calibration"]
     ART[("diagnoser.joblib")]
-    BL["baseline.py<br/>optional zero-shot Gemini"]
   end
   P & D & E -->|HTTP JSON| API
   API --> SB --> DG
@@ -65,7 +64,6 @@ flowchart LR
   API <--> DB
   API --- CT
   GEN --> TR --> ART --> DG
-  BL -.-> API
 ```
 
 **One pass through the loop**
@@ -194,7 +192,7 @@ What this tells us:
 - An earlier set of 34 hand-written snippets (`ml/relearn_ml/wild.py`) was classified 34/34 correctly; the Realistic set above is the harder, more varied successor and is the number to quote.
 - **No real learner data was used.** Real students write messier code and combine misconceptions.
 
-**LLM baseline**: `ml/baseline.py` runs a zero-shot Gemini classifier on the same held-out problems and adds an "Our model vs Gemini baseline" table to `docs/metrics.md` and the Eval page. **It has not been run yet** (needs `GEMINI_API_KEY`); until then the page says *baseline not run*. The comparison will be system vs. system - our model also sees test-execution features that Gemini does not.
+**No LLM anywhere**: hints, concept checks and explanations are curated or computed deterministically; the app runs fully offline with no API keys.
 
 ## Screenshots
 
@@ -273,7 +271,7 @@ Open http://localhost:5173. API docs: http://localhost:8000/docs.
 
 ```powershell
 cd server; ..\ml\.venv\Scripts\python -m pytest -q        # 19 API tests
-cd ..\ml;  .\.venv\Scripts\python -m pytest tests -q       # baseline tests (mock Gemini server)
+cd ..\ml;  .\.venv\Scripts\python -m pytest tests -q       # curated-content tests
 cd ..\ml;  .\.venv\Scripts\python realistic_eval.py     # re-run the Realistic set evaluation
 cd ..\client; npm run lint; npm run build                  # production build to client\dist
 cd ..\ml;  .\.venv\Scripts\python -m relearn_ml.generate   # regenerate the dataset (labels re-verified)
@@ -286,7 +284,6 @@ cd ..\ml;  .\.venv\Scripts\python -m relearn_ml.generate   # regenerate the data
 | `VITE_API_URL` | client (`client\.env`) | backend base URL; defaults to `http://localhost:8000` |
 | `CORS_ORIGINS` | server | extra allowed origins, comma-separated (localhost and `*.vercel.app` are always allowed) |
 | `RELEARN_DB` | server | SQLite path (default `server\relearn.db`) |
-| `GEMINI_API_KEY` | `ml/.env` (or the environment, `.env`, `server/.env`) | enables AI **hints** and AI-written **concept checks** through one shared client (`ml/relearn_ml/llm.py`, loaded with python-dotenv). Default model `gemini-flash-latest` (`GEMINI_MODEL` overrides), 15 s timeout (`RELEARN_LLM_TIMEOUT`, default 15), one attempt: on 429 / 503 / timeout / any API error the built-in hint or the verified built-in question is used and the reason is logged. `GET /hint-status` shows whether the key was found (never the key) |
 
 ### Troubleshooting
 
@@ -307,14 +304,14 @@ cd ..\ml;  .\.venv\Scripts\python -m relearn_ml.generate   # regenerate the data
 | `GET /learner/{id}` | mastery 0..1 per misconception + attempt history |
 | `POST /hint {problem_id, code, hint_level 1-3, learner_id?}` | progressive hint: `{level, hint, source}` (1 = where, 2 = what/why, 3 = small code nudge; max 60 words; guardrails enforced in code; built-in fallback; every request logged) |
 | `GET /learner/{id}/hints` | hint usage log for a learner (totals, per problem, recent) |
-| `GET /metrics`, `GET /metrics/confusion-matrix`, `GET /baseline` | evaluation data for the Eval page |
+| `GET /metrics`, `GET /metrics/confusion-matrix` | evaluation data for the Eval page |
 
 ## Repo layout
 
 ```
 client/    React + Vite + Tailwind + Monaco (Practice, Dashboard, Eval)
 server/    FastAPI app (app/), SQLite store, sandbox wrapper, tests
-ml/        relearn_ml/ (features, execution engine, templates, model), train.py, baseline.py, data/dataset.jsonl
+ml/        relearn_ml/ (features, execution engine, templates, model), train.py, data/dataset.jsonl
 content/   problems.json (22 problems + tests), misconceptions.json (lessons + concept questions)
 docs/      metrics.md / metrics.json, confusion_matrix.png, screenshots/, deploy.md
 render.yaml  backend deployment blueprint        run.ps1  one-command local start
@@ -334,6 +331,4 @@ Backend on **Render** (`render.yaml`; the model is trained during the build), fr
 - **Ambiguous twin cases are flagged** (`ambiguous`, `runner_up`) but there is no follow-up probe question yet.
 - **Mastery is a heuristic**, not a fitted knowledge-tracing model.
 - **Sandbox is demo-grade**: subprocess + 2 s timeout + restricted builtins + AST banlist. No OS-level CPU/memory/filesystem limits - do not expose it to a hostile public.
-- **AI hints are only as good as the LLM** and need `GEMINI_API_KEY`; the guardrails (word limit, no code at levels 1-2, at most 2 code lines at level 3, no leaked reference solution) are enforced in code, but a hint can still be unhelpful. Without a key the Hint button serves built-in hints.
 - **Free-tier hosting**: Render's SQLite is on ephemeral disk (history resets on redeploy) and the service sleeps when idle.
-- **Gemini baseline not yet run** (no API key in the build environment).

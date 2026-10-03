@@ -79,7 +79,7 @@ export default function InterventionPanel({ label, problemId, code, learnerId, o
       <div className="mt-6 rounded-lg border border-line bg-raised p-4">
         <div className="mb-2 flex items-center justify-between gap-2">
           <h4 className="text-xs font-semibold uppercase tracking-wide text-muted">Concept check</h4>
-          <span className="text-xs text-muted">{data.concept_source === 'fallback_pool' ? 'general practice question' : data.concept_source === 'llm' ? 'about your code · AI-written, answer verified' : data.personalized ? 'about your code' : ''}</span>
+          <span className="text-xs text-muted">{data.concept_source === 'fallback_pool' ? 'general practice question' : data.personalized ? 'about your code' : ''}</span>
         </div>
         <pre className="mb-3 whitespace-pre-wrap font-mono text-[13px] text-ink">{q.question}</pre>
         <div className="grid gap-2 sm:grid-cols-2" role="radiogroup" aria-label="Concept check answers">

@@ -15,7 +15,5 @@ services:
         value: 3.12.10
       - key: RELEARN_DB            # SQLite on ephemeral disk: learner history resets on each deploy/restart (free plan)
         value: /tmp/relearn.db
-      - key: GEMINI_API_KEY        # optional: enables AI hints (without it the Hint button serves built-in hints)
-        sync: false
       - key: CORS_ORIGINS          # extra allowed origins, comma-separated (any *.vercel.app is already allowed)
         sync: false

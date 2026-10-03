@@ -23,7 +23,7 @@ M5_TRANSFER_BAD = "def product(nums):\n    p = 1\n    for x in nums:\n        p 
 
 def test_health_and_cors(c):
     r = c.get("/health", headers={"Origin": "http://localhost:5173"})
-    assert r.status_code == 200 and r.json() == {"ok": True, "model_loaded": True}
+    assert r.status_code == 200 and r.json() == {"ok": True, "model_loaded": True, "llm": "none"}
     assert r.headers["access-control-allow-origin"] in ("*", "http://localhost:5173")
     pre = c.options("/diagnose", headers={"Origin": "http://localhost:5173", "Access-Control-Request-Method": "POST",
                                           "Access-Control-Request-Headers": "content-type"})
@@ -173,13 +173,9 @@ def test_cors_allows_vercel_and_blocks_others(c):
     assert "access-control-allow-origin" not in sneaky.headers
 
 
-def test_baseline_endpoint(c):
+def test_baseline_endpoint_reports_removed(c):
     r = c.get("/baseline").json()
-    assert r["status"] in ("ok", "not_run")
-    if r["status"] == "not_run":
-        assert "reason" in r
-    else:
-        assert {"ours", "gemini", "gemini_model"} <= set(r)
+    assert r["status"] == "removed" and "offline" in r["reason"]
 
 
 def test_untouched_starter_code_is_not_diagnosed_as_m3(c):

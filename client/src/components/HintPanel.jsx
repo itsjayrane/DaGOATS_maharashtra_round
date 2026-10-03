@@ -2,11 +2,6 @@ import { ErrorNote, Pill, RichText } from './ui'
 
 export const MAX_HINTS = 3
 
-// why a built-in hint was shown instead of an AI one (reason codes come from the backend)
-const WHY = {
-  no_api_key: 'AI not configured', rate_limited: 'AI rate limit reached', overloaded: 'AI busy right now', timeout: 'AI timed out',
-  api_error: 'AI request failed', bad_response: 'AI answer unusable', guardrail_rejected: 'AI answer filtered',
-}
 
 // Hints revealed so far (one per level), a loading line while the next one is on its way, and notes/errors.
 export default function HintPanel({ hints, loading, note, error }) {
@@ -17,7 +12,6 @@ export default function HintPanel({ hints, loading, note, error }) {
         <div key={h.level} data-testid="hint-item">
           <div className="mb-1 flex items-center gap-2">
             <Pill tone="info">Hint {h.level}/{MAX_HINTS}</Pill>
-            <span className="text-[11px] text-muted">{h.source === 'llm' ? 'AI hint' : `built-in hint · ${WHY[h.reason] ?? 'AI unavailable'}`}</span>
           </div>
           <RichText text={h.hint} className="text-sm text-ink/90" />
         </div>

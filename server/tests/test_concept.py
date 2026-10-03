@@ -97,8 +97,8 @@ def test_generation_failure_falls_back_to_the_pool_and_is_logged(c, caplog):
         # correct code but forced label M5: nothing fails, so no problem-specific question exists
         r = ask(c, "M5_RETURN_IN_LOOP", "sum_list", CORRECT_SUM, "fb-1")
     q = r["intervention"]["predict"]
-    assert r["concept_source"] == "fallback_pool" and q["source"] == "fallback_pool" and 0 <= q["pool_index"] < 4
-    assert q["question"] in [x["question"] for x in concept.POOL["M5_RETURN_IN_LOOP"]]
+    assert r["concept_source"] == "fallback_pool" and q["source"] == "fallback_pool" and 0 <= q["pool_index"] < len(concept.POOL["M5_RETURN_IN_LOOP"])
+    assert q["question"] == concept.pool_question(concept.POOL["M5_RETURN_IN_LOOP"][q["pool_index"]], q["pool_index"])["question"]
     assert any("FALLBACK" in m and "no_failing_test" in m and "sum_list" in m for m in caplog.messages)
     after = c.get("/concept-stats").json()
     assert after["fallback_count"] == before["fallback_count"] + 1 and after["fallback_reasons"]["no_failing_test"] >= 1
@@ -108,9 +108,9 @@ def test_generation_failure_falls_back_to_the_pool_and_is_logged(c, caplog):
 def test_pool_never_repeats_the_same_question_twice_in_a_row(c):
     seq = [ask(c, "M4_ACCUMULATOR_RESET", "sum_list", CORRECT_SUM, "rot")["intervention"]["predict"]["pool_index"] for _ in range(9)]
     assert all(a != b for a, b in zip(seq, seq[1:])), seq
-    assert len(set(seq[:4])) == 4, "all four pool questions get used before any repeats"
+    assert len(set(seq)) >= 2
     other = ask(c, "M4_ACCUMULATOR_RESET", "sum_list", CORRECT_SUM, "rot-other-learner")["intervention"]["predict"]["pool_index"]
-    assert 0 <= other < 4  # independent rotation per learner
+    assert 0 <= other < len(concept.POOL["M4_ACCUMULATOR_RESET"])  # independent rotation per learner
 
 
 def test_invalid_or_crashing_generation_falls_back(c, monkeypatch, caplog):
@@ -133,16 +133,39 @@ def test_invalid_or_crashing_generation_falls_back(c, monkeypatch, caplog):
     assert reasons.get("invalid_question", 0) >= 1 and reasons.get("exception", 0) >= 1
 
 
-def test_pool_content_is_valid_and_separate_from_the_reassessment_questions():
+def run_snippet(code):
+    """The keyed answer of a pool item: the LAST printed line, or the exception name if the snippet raises."""
+    import contextlib, io
+    buf = io.StringIO()
+    try:
+        with contextlib.redirect_stdout(buf):
+            exec(code, {})
+    except Exception as e:
+        return type(e).__name__
+    lines = [l.strip() for l in buf.getvalue().strip().splitlines()]
+    return lines[-1] if lines else ""
+
+
+def test_pool_is_curated_verified_by_execution_and_separate_from_reassessment():
     misc = json.loads((CONTENT / "misconceptions.json").read_text(encoding="utf-8"))
     assert set(concept.POOL) == set(misc)
     for label, items in concept.POOL.items():
-        assert len(items) == 4
-        for q in items:
-            concept.validate(dict(q, answerIndex=q["answer"]))
-        assert len({q["question"] for q in items}) == 4
+        assert len(items) >= 2, label
+        for i, it in enumerate(items):
+            q = concept.pool_question(it, i)  # shape + validation the UI relies on
+            assert run_snippet(it["code"]) == it["options"][it["answer"]], (label, i, run_snippet(it["code"]), it["options"])
+            assert set(it["topics"]) <= {"list", "string", "number"} and it["topics"]
+        assert len({it["code"] for it in items}) == len(items)
         reassess = {x["q"] for x in misc[label]["concept_questions"]} | {misc[label]["intervention"]["predict"]["question"]}
-        assert not reassess & {q["question"] for q in items}, f"{label}: pool must not reuse reassessment / static questions"
+        assert not reassess & {it["code"] for it in items}, f"{label}: pool must not reuse reassessment / static questions"
+
+
+def test_pool_pick_matches_the_problem_topic(c):
+    for pid, label in [("greet", "M3_PRINT_NOT_RETURN"), ("sum_list", "M3_PRINT_NOT_RETURN"), ("shout", "M7_STRING_MUTABLE")]:
+        good = "def f():\n    pass\n"  # wrong function name -> no generated question, pool is used
+        q = c.post("/intervene", json={"label": label, "problem_id": pid, "code": good, "learner_id": f"topic-{pid}"}).json()["intervention"]["predict"]
+        item = concept.POOL[label][q["pool_index"]]
+        assert concept.problem_topics(PROBLEMS[pid]) & set(item["topics"]), (pid, item["topics"])
 
 
 def test_reassessment_concept_questions_are_untouched(c):
@@ -150,94 +173,3 @@ def test_reassessment_concept_questions_are_untouched(c):
     assert [q["id"] for q in r["concept_questions"]] == ["M5-c1", "M5-c2"] and "answer" not in r["concept_questions"][0]
     misc = json.loads((CONTENT / "misconceptions.json").read_text(encoding="utf-8"))
     assert [q["answer"] for q in misc["M5_RETURN_IN_LOOP"]["concept_questions"]] == [1, 1]
-
-
-# ------------------------------------------------------------------ LLM-written concept checks (shared Gemini client, mocked)
-import threading
-from http.server import BaseHTTPRequestHandler, HTTPServer
-
-
-class GMock(BaseHTTPRequestHandler):
-    prompts = []
-    reply = staticmethod(lambda prompt: (200, {}))
-
-    def log_message(self, *a): pass
-
-    def _send(self, status, obj):
-        b = json.dumps(obj).encode()
-        self.send_response(status); self.send_header("Content-Type", "application/json"); self.send_header("Content-Length", str(len(b))); self.end_headers(); self.wfile.write(b)
-
-    def do_POST(self):
-        prompt = json.loads(self.rfile.read(int(self.headers["Content-Length"])))["contents"][0]["parts"][0]["text"]
-        GMock.prompts.append(prompt)
-        status, obj = GMock.reply(prompt)
-        if status != 200:
-            return self._send(status, {"error": {"code": status, "message": "mock error"}})
-        self._send(200, {"candidates": [{"content": {"parts": [{"text": json.dumps(obj)}]}, "finishReason": "STOP"}], "modelVersion": "mock-flash"})
-
-
-@pytest.fixture()
-def gem(monkeypatch):
-    srv = HTTPServer(("127.0.0.1", 0), GMock)
-    threading.Thread(target=srv.serve_forever, daemon=True).start()
-    GMock.prompts = []
-    monkeypatch.setenv("GEMINI_API_KEY", "test-key")
-    monkeypatch.setenv("GEMINI_API_BASE", f"http://127.0.0.1:{srv.server_port}")
-    yield GMock
-    srv.shutdown()
-
-
-PRODUCT = CASES[4][2]  # M5: return inside the loop -> product([2, 3, 4]) really returns 2 (intended 24)
-GOOD = {"question": "With your product function, what does product([2, 3, 4]) give back?",
-        "options": ["24", "2", "9", "None"], "answerIndex": 1,
-        "explanation": "Your return sits inside the loop, so the function stops after multiplying in the first number and gives back 2."}
-
-
-def test_llm_writes_the_question_around_the_verified_answer(c, gem):
-    gem.reply = staticmethod(lambda p: (200, GOOD))
-    code = PRODUCT + "# llm-ok\n"
-    r = ask(c, "M5_RETURN_IN_LOOP", "product", code, "llm-ok")
-    q = r["intervention"]["predict"]
-    assert r["concept_source"] == "llm" and q["source"] == "llm"
-    concept.validate(q)
-    assert q["options"][q["answer"]] == "2" and q["answer"] == q["answerIndex"] == 1, "verified answer at the stated index"
-    assert q["question"].startswith('Here is your function for "Product of a list"') and code.strip() in q["question"]
-    assert q["question"].endswith(GOOD["question"]) and q["explanation"] == GOOD["explanation"]
-    p = gem.prompts[0]
-    assert "gives: 2" in p and "intended result is 24" in p and "Exactly one must be exactly: 2" in p and "p *= x" in p
-    again = ask(c, "M5_RETURN_IN_LOOP", "product", code, "llm-ok-2")
-    assert again["concept_source"] == "cache" and len(gem.prompts) == 1, "LLM questions are cached per (problem, misconception, code)"
-
-
-BAD_LLM = [
-    ("verified answer", {**GOOD, "options": ["24", "3", "9", "None"], "answerIndex": 0}),
-    ("answerIndex", {**GOOD, "answerIndex": 0}),
-    ("not distinct", {**GOOD, "options": ["2", "2 ", "9", "None"], "answerIndex": 0}),
-    ("does not refer", {**GOOD, "question": "What happens when it runs?"}),
-    ("explanation", {**GOOD, "explanation": "word " * 80}),
-    ("full function", {**GOOD, "explanation": "Write def product(nums): with the return after the loop."}),
-    ("4 non-empty", {**GOOD, "options": ["24", "2", "9"], "answerIndex": 1}),
-]
-
-
-@pytest.mark.parametrize("why,reply", BAD_LLM, ids=[b[0].replace(" ", "_") for b in BAD_LLM])
-def test_bad_llm_questions_fall_back_to_the_verified_one(c, gem, caplog, why, reply):
-    gem.reply = staticmethod(lambda p: (200, reply))
-    with caplog.at_level(logging.WARNING, logger="relearn.concept"):
-        r = ask(c, "M5_RETURN_IN_LOOP", "product", PRODUCT + f"# bad-{why}\n", "bad")
-    q = r["intervention"]["predict"]
-    assert r["concept_source"] == "generated" and q["options"][q["answer"]] == "2", "the learner still gets the verified question"
-    assert any("LLM not used" in m and "guardrail_rejected" in m and why in m for m in caplog.messages), caplog.messages
-
-
-def test_api_trouble_keeps_the_verified_question_and_is_retried_next_time(c, gem, caplog):
-    code = PRODUCT + "# busy\n"
-    gem.reply = staticmethod(lambda p: (503, None))
-    with caplog.at_level(logging.WARNING, logger="relearn.concept"):
-        r = ask(c, "M5_RETURN_IN_LOOP", "product", code, "busy")
-    assert r["concept_source"] == "generated" and any("reason=overloaded" in m for m in caplog.messages)
-    gem.reply = staticmethod(lambda p: (200, GOOD))
-    r2 = ask(c, "M5_RETURN_IN_LOOP", "product", code, "busy")
-    assert r2["concept_source"] == "llm" and len(gem.prompts) == 2, "a transient failure is not cached"
-    st = c.get("/concept-stats").json()["by_source"]
-    assert st.get("llm", 0) >= 1 and st.get("generated", 0) >= 1
