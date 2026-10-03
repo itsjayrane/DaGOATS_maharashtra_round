@@ -47,7 +47,7 @@ FIXED_PARAMS = {"k", "rows", "cols", "part", "whole", "ch", "name", "c", "s", "i
 
 
 def render(code, rng):
-    keys = sorted(set(re.findall(r"\$([a-z]+)", code)), key=len, reverse=True)
+    keys = sorted(set(re.findall(r"\$([a-z]+)", code)), key=lambda k: (-len(k), k))  # ties by name: deterministic under hash randomization
     for _ in range(30):
         pick = {k: rng.choice(POOLS[k]) for k in keys}
         if len(set(pick.values())) == len(pick):

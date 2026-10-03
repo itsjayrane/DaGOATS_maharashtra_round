@@ -24,8 +24,9 @@ WHY = {
     "R17": "`enumerate(nums, 1)` used as an index is not one of the M2 signatures; no signature fires, so the model abstains ('unknown').",
     "R21": "An explicit `return None` after the print defeats the print-without-return signature; with only a wrong value and "
            "no known pattern, the model abstains ('unknown').",
-    "R28": "Right, but only 52% sure: the one structural signal is a `return` inside the `while` body, and the code still passes "
-           "3 of 5 tests because the first item often decides the answer.",
+    "R28": "Wrong (M1 at 45% vs M5 at 33%): the `return` sits inside a `while` loop whose counter `i` is updated by hand; the "
+           "while-loop shape looks like an off-by-one bound and the code still passes 3 of 5 tests, so M5's signal is weak. "
+           "A confident-enough misdiagnosis above the abstention threshold (the realistic set's only one).",
     "R35": "Right, but only 29% sure: `chars[i] = ch` with the parameter `i` also fires an M2 indexing signature, and "
            "`chars = s` fires an M8 aliasing one, so three misconceptions compete.",
 }

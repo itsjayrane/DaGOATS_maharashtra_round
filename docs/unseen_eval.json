@@ -1,70 +1,68 @@
 {
  "description": "Leave-one-misconception-out: the model never sees the held-out misconception; 3-fold CV grouped by problem; production feature set, temperature and UNKNOWN_T. 'flagged_unknown' is the desired behaviour; 'confidently_mislabelled' means a confident, wrong diagnosis (dangerous).",
- "unknown_t": 0.1362,
+ "unknown_t": 0.1516,
  "temperature": 3.2499999999999996,
  "per_class": {
   "M1_RANGE_OFF_BY_ONE": {
    "n": 322,
-   "flagged_unknown": 0.7236024844720497,
-   "confidently_mislabelled": 0.27639751552795033,
+   "flagged_unknown": 0.6894409937888198,
+   "confidently_mislabelled": 0.3105590062111801,
    "mislabelled_as": {
-    "M2_INDEX_FROM_ONE": 40,
-    "M8_LIST_ALIASING": 32,
+    "M2_INDEX_FROM_ONE": 48,
+    "M8_LIST_ALIASING": 35,
     "M5_RETURN_IN_LOOP": 14
    },
-   "false_unknown_on_known": 0.0631857737419599
+   "false_unknown_on_known": 0.06242905788876277
   },
   "M2_INDEX_FROM_ONE": {
    "n": 266,
-   "flagged_unknown": 0.6015037593984962,
-   "confidently_mislabelled": 0.39849624060150374,
+   "flagged_unknown": 0.6691729323308271,
+   "confidently_mislabelled": 0.3308270676691729,
    "mislabelled_as": {
-    "M1_RANGE_OFF_BY_ONE": 78,
+    "M1_RANGE_OFF_BY_ONE": 60,
     "M5_RETURN_IN_LOOP": 14,
     "M8_LIST_ALIASING": 14
    },
-   "false_unknown_on_known": 0.06817339755464986
+   "false_unknown_on_known": 0.0637273064097814
   },
   "M3_PRINT_NOT_RETURN": {
    "n": 487,
-   "flagged_unknown": 0.5626283367556468,
-   "confidently_mislabelled": 0.43737166324435317,
+   "flagged_unknown": 0.5975359342915811,
+   "confidently_mislabelled": 0.4024640657084189,
    "mislabelled_as": {
-    "M5_RETURN_IN_LOOP": 91,
-    "M2_INDEX_FROM_ONE": 49,
-    "M7_STRING_MUTABLE": 41
+    "M5_RETURN_IN_LOOP": 77,
+    "M7_STRING_MUTABLE": 41,
+    "M2_INDEX_FROM_ONE": 41
    },
-   "false_unknown_on_known": 0.08514931396287329
+   "false_unknown_on_known": 0.08918482647296207
   },
   "M4_ACCUMULATOR_RESET": {
    "n": 168,
-   "flagged_unknown": 0.6607142857142857,
-   "confidently_mislabelled": 0.3392857142857143,
+   "flagged_unknown": 0.5714285714285714,
+   "confidently_mislabelled": 0.42857142857142855,
    "mislabelled_as": {
-    "M1_RANGE_OFF_BY_ONE": 56,
-    "M5_RETURN_IN_LOOP": 1
+    "M1_RANGE_OFF_BY_ONE": 72
    },
-   "false_unknown_on_known": 0.07543796925277083
+   "false_unknown_on_known": 0.07472291741151234
   },
   "M5_RETURN_IN_LOOP": {
    "n": 210,
-   "flagged_unknown": 0.9238095238095239,
-   "confidently_mislabelled": 0.0761904761904762,
+   "flagged_unknown": 0.8809523809523809,
+   "confidently_mislabelled": 0.11904761904761904,
    "mislabelled_as": {
-    "M1_RANGE_OFF_BY_ONE": 16
+    "M1_RANGE_OFF_BY_ONE": 25
    },
-   "false_unknown_on_known": 0.06642468239564428
+   "false_unknown_on_known": 0.06823956442831217
   },
   "M6_FLOAT_DIVISION": {
    "n": 168,
-   "flagged_unknown": 0.7797619047619048,
-   "confidently_mislabelled": 0.22023809523809523,
+   "flagged_unknown": 0.8809523809523809,
+   "confidently_mislabelled": 0.11904761904761904,
    "mislabelled_as": {
-    "M1_RANGE_OFF_BY_ONE": 16,
-    "M5_RETURN_IN_LOOP": 9,
-    "M8_LIST_ALIASING": 8
+    "M1_RANGE_OFF_BY_ONE": 11,
+    "M5_RETURN_IN_LOOP": 9
    },
-   "false_unknown_on_known": 0.07901322845906328
+   "false_unknown_on_known": 0.07150518412584912
   },
   "M7_STRING_MUTABLE": {
    "n": 126,
@@ -75,22 +73,22 @@
     "M8_LIST_ALIASING": 14,
     "M3_PRINT_NOT_RETURN": 14
    },
-   "false_unknown_on_known": 0.05389221556886228
+   "false_unknown_on_known": 0.04896090172595984
   },
   "M8_LIST_ALIASING": {
    "n": 182,
-   "flagged_unknown": 0.510989010989011,
-   "confidently_mislabelled": 0.489010989010989,
+   "flagged_unknown": 0.5714285714285714,
+   "confidently_mislabelled": 0.42857142857142855,
    "mislabelled_as": {
-    "M2_INDEX_FROM_ONE": 42,
-    "M1_RANGE_OFF_BY_ONE": 32,
-    "M7_STRING_MUTABLE": 15
+    "M1_RANGE_OFF_BY_ONE": 35,
+    "M2_INDEX_FROM_ONE": 29,
+    "M7_STRING_MUTABLE": 14
    },
-   "false_unknown_on_known": 0.07833273445921667
+   "false_unknown_on_known": 0.07473948975925261
   }
  },
- "mean_flagged_unknown": 0.6648206076820593,
- "mean_confidently_mislabelled": 0.3351793923179408,
- "false_unknown_rate_on_known": 0.0710385021339085,
- "seconds": 87
+ "mean_flagged_unknown": 0.6770584150910861,
+ "mean_confidently_mislabelled": 0.32294158490891395,
+ "false_unknown_rate_on_known": 0.0689275388922032,
+ "seconds": 76
 }

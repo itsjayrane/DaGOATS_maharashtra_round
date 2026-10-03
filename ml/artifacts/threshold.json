@@ -1,8 +1,8 @@
 {
- "unknown_t": 0.1362,
+ "unknown_t": 0.1516,
  "target_coverage": 0.9,
- "coverage_known_oof": 0.9010030527692978,
- "other_bug_flagged_oof": 0.8986486486486487,
+ "coverage_known_oof": 0.9001308329699084,
+ "other_bug_flagged_oof": 0.8918918918918919,
  "temperature": 3.2499999999999996,
  "method": "highest threshold with >= 90% of known-class out-of-fold samples answered (grouped 5-fold CV over the training problems); unknown = top-1 OTHER_BUG or max prob < unknown_t"
 }

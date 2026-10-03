@@ -12,14 +12,14 @@
  "n_train": 2441,
  "n_holdout": 709,
  "cv_macro_f1_train_problems": {
-  "AST + execution + task flags": 0.7665472071070812,
-  "TF-IDF + AST + execution + task flags": 0.643005104215215
+  "AST + execution + task flags": 0.7656557167481315,
+  "TF-IDF + AST + execution + task flags": 0.653776618895481
  },
  "holdout": {
-  "accuracy": 0.9675599435825106,
-  "macro_f1": 0.9597222222222224,
+  "accuracy": 0.9661495063469676,
+  "macro_f1": 0.958069979046471,
   "per_problem_accuracy": {
-   "sum_list": 0.9122137404580153,
+   "sum_list": 0.9083969465648855,
    "average": 1.0,
    "shout": 1.0,
    "double_all": 1.0
@@ -32,9 +32,9 @@
     "support": 196
    },
    "M1_RANGE_OFF_BY_ONE": {
-    "precision": 0.9868421052631579,
-    "recall": 0.8928571428571429,
-    "f1": 0.9375,
+    "precision": 1.0,
+    "recall": 0.8809523809523809,
+    "f1": 0.9367088607594937,
     "support": 84
    },
    "M2_INDEX_FROM_ONE": {
@@ -80,9 +80,9 @@
     "support": 42
    },
    "OTHER_BUG": {
-    "precision": 0.6271186440677966,
+    "precision": 0.6065573770491803,
     "recall": 1.0,
-    "f1": 0.7708333333333334,
+    "f1": 0.7551020408163265,
     "support": 37
    }
   },
@@ -91,9 +91,9 @@
     "n": 154,
     "n_a": 84,
     "n_b": 70,
-    "exact": 0.8506493506493507,
-    "in_pair": 0.8571428571428571,
-    "swapped": 0.006493506493506494
+    "exact": 0.8441558441558441,
+    "in_pair": 0.8441558441558441,
+    "swapped": 0.0
    },
    "M4_M5": {
     "n": 112,
@@ -106,12 +106,12 @@
   }
  },
  "abstention": {
-  "unknown_t": 0.1362,
-  "coverage_known_oof": 0.9010030527692978,
-  "other_bug_flagged_oof": 0.8986486486486487,
-  "holdout_coverage_known": 0.9672619047619048,
+  "unknown_t": 0.1516,
+  "coverage_known_oof": 0.9001308329699084,
+  "other_bug_flagged_oof": 0.8918918918918919,
+  "holdout_coverage_known": 0.9642857142857143,
   "holdout_other_bug_flagged": 1.0,
-  "holdout_accuracy_when_answering": 0.9984615384615385,
+  "holdout_accuracy_when_answering": 1.0,
   "holdout_n_other_bug": 37
  },
  "caveat": "Held-out score is optimistic: samples are variants of a few dozen templates. See docs/metrics.md."
