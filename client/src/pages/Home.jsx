@@ -1,4 +1,5 @@
 import { useEffect, useRef, useState } from 'react'
+import { useSearchParams } from 'react-router-dom'
 import { api, learnerId } from '../api'
 import CodeEditor from '../components/CodeEditor'
 import DiagnosisCard from '../components/DiagnosisCard'
@@ -9,6 +10,8 @@ import { DEMOS } from '../labels'
 
 export default function Home() {
   const [lid] = useState(learnerId)
+  const [params] = useSearchParams()
+  const showDemo = params.get('demo') === '1' // demo-bug panel is hidden unless the URL has ?demo=1
   const [problems, setProblems] = useState([])
   const [pid, setPid] = useState('sum_list')
   const [code, setCode] = useState('')
@@ -69,6 +72,7 @@ export default function Home() {
           </div>
         )}
 
+        {showDemo && (
         <div className="mb-4 rounded-lg border border-line bg-raised p-3">
           <p className="mb-2 text-xs font-semibold uppercase tracking-wide text-muted">Load demo bug (twin pairs - look alike, different cause)</p>
           <div className="flex flex-wrap gap-2">
@@ -81,6 +85,7 @@ export default function Home() {
           </div>
           {demo && <p className="mt-2 text-xs text-muted">Loaded {demo.id}: {demo.blurb}</p>}
         </div>
+        )}
 
         <CodeEditor value={code} onChange={setCode} onSubmit={submit} />
         <div className="mt-4 flex items-center justify-between gap-3">
@@ -94,7 +99,7 @@ export default function Home() {
         <div ref={diagRef} className="scroll-mt-20 space-y-6">
           <DiagnosisCard diag={diag} />
           {diag.label === 'CORRECT' && (
-            <Card><p className="text-sm text-good">Nice - no misconception detected. Try a demo bug above to see the diagnosis → intervention → proof loop.</p></Card>
+            <Card><p className="text-sm text-good">Nice - no misconception detected.{showDemo && ' Try a demo bug above to see the diagnosis → intervention → proof loop.'}</p></Card>
           )}
           {misconception && <InterventionPanel key={`${misconception}:${pid}`} label={misconception} onProve={prove} />}
         </div>

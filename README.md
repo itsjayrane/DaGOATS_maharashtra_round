@@ -110,7 +110,7 @@ sequenceDiagram
 | **M1 vs M2** | `sum_list` with `range(len(nums) - 1)` (M1, drops the **last** item) and `range(1, len(nums))` (M2, drops the **first**) both return `14` for `[5, 9, 5]` | stop bound shortened (`len(x) - 1`) vs. start index set to 1 / index `len(x)` used |
 | **M4 vs M5** | the accumulator-reset version returns the **last** item, the return-in-loop version returns the **first**; both return `3` for `[3, 1, 3]` and for any one-item list | `total = 0` *inside* the loop body vs. a `return` *directly in* the loop body |
 
-The UI has **Load demo bug** buttons for all four, so you can watch the model separate each twin from its partner.
+The Practice page has **Load demo bug** buttons for all four, so you can watch the model separate each twin from its partner. The panel is hidden by default; open **http://localhost:5173/?demo=1** to show it.
 
 ## How reassessment works
 
