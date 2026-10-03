@@ -37,6 +37,8 @@ export default function TransferPanel({ label, learnerId, originalProblemId, onR
   const [busy, setBusy] = useState(false)
   const [error, setError] = useState('')
   const [result, setResult] = useState(null)
+  const [cleared, setCleared] = useState([])
+  const [advanced, setAdvanced] = useState('')
 
   useEffect(() => {
     let live = true
@@ -51,14 +53,23 @@ export default function TransferPanel({ label, learnerId, originalProblemId, onR
 
   const choose = (id) => {
     const p = info.problems.find((x) => x.id === id)
-    setPid(id); setCode(p.starter); setResult(null)
+    setPid(id); setCode(p.starter); setResult(null); setAdvanced('')
   }
   const submit = async () => {
-    setBusy(true); setError(''); setResult(null)
+    setBusy(true); setError(''); setResult(null); setAdvanced('')
     try {
       const r = await api.reassess({ learner_id: learnerId, misconception: short(label), problem_id: pid, code, concept_answer: answer, concept_id: q.id })
       setResult(r)
+      if (r.cleared_problems) setCleared(r.cleared_problems)
       if (r.resolved) onResolved?.()
+      else if (r.cleared_problems?.includes(pid)) {
+        // this one is cleared: move straight on to a different transfer problem (the same one never counts twice)
+        const next = info.problems.find((x) => !r.cleared_problems.includes(x.id))
+        if (next) {
+          setPid(next.id); setCode(next.starter); setAnswer(null)
+          setAdvanced(`Cleared! Next problem loaded: ${next.title}.`)
+        }
+      }
     } catch (e) { setError(e.message) } finally { setBusy(false) }
   }
 
@@ -66,17 +77,17 @@ export default function TransferPanel({ label, learnerId, originalProblemId, onR
   if (!info) return <Card title="Prove it"><p className="text-sm text-muted">Loading transfer problems…</p></Card>
 
   return (
-    <Card title="Prove it · transfer problem" right={<Pill tone="info">{short(label)}</Pill>}>
+    <Card title="Prove it · transfer problems" right={<Pill tone={cleared.length >= (result?.needed ?? 2) ? 'good' : 'info'}>{Math.min(cleared.length, result?.needed ?? 2)} / {result?.needed ?? 2} cleared</Pill>}>
       <p className="mb-4 text-sm text-muted">
-        A fresh task where the same idea matters. To count as resolved: tests pass, the model no longer detects {short(label)},
-        and you answer the concept question correctly.
+        Solve 2 different fresh problems where the same idea matters. Each one counts when its tests pass, the mistake does not
+        come back, and you answer the concept question correctly.
       </p>
 
       <div className="mb-3 flex flex-wrap gap-2" role="tablist" aria-label="Transfer problems">
         {info.problems.map((p) => (
           <button key={p.id} role="tab" aria-selected={p.id === pid} onClick={() => choose(p.id)}
             className={`rounded-lg border px-3 py-1.5 text-xs font-medium transition ${p.id === pid ? 'border-accent bg-accent/10 text-accent' : 'border-line text-muted hover:text-ink'}`}>
-            {p.title}
+            {cleared.includes(p.id) && <span className="text-good" aria-label="cleared">✓ </span>}{p.title}
           </button>
         ))}
       </div>
@@ -106,6 +117,7 @@ export default function TransferPanel({ label, learnerId, originalProblemId, onR
         <Button disabled={busy || answer === null || !pid} onClick={submit}>{busy ? 'Checking…' : 'Check my answer'}</Button>
       </div>
       <div className="mt-3"><ErrorNote error={error} /></div>
+      {advanced && <p className="mt-4 rounded-lg border border-good/40 bg-good/10 p-3 text-sm text-good" role="status">{advanced}</p>}
       {result && <div className="mt-4"><Result r={result} /></div>}
       {result?.mastery_after != null && <div className="mt-4"><Bar value={result.mastery_after} tone={result.resolved ? 'good' : 'warn'} label="Mastery of this idea" right={`${Math.round(result.mastery_after * 100)}%`} /></div>}
     </Card>

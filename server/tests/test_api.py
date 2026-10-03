@@ -4,9 +4,11 @@ os.environ["RELEARN_DB"] = os.path.join(tempfile.mkdtemp(), "test.db")  # before
 
 import pytest
 from fastapi.testclient import TestClient
+from relearn_ml import references
 
 from app.main import app
 
+COUNT_EVENS_OK = references.reference_variants()["count_evens"][0]
 
 @pytest.fixture(scope="module")
 def c():
@@ -109,13 +111,19 @@ def test_reassess_full_flow_and_mastery(c):
     lid = "learner-1"
     d = c.post("/diagnose", json={"problem_id": "sum_list", "code": SUM_M5, "learner_id": lid}).json()
     assert d["label"] == "M5_RETURN_IN_LOOP" and d["mastery_after"] < 0.5
-    # 1) all conditions met on a NEW task
-    ok = c.post("/reassess", json={"learner_id": lid, "misconception": "M5", "problem_id": "product", "code": M5_TRANSFER_OK, "concept_answer": 1}).json()
-    assert ok["resolved"] is True and all(r["passed"] for r in ok["reasons"])
+    # 1) all conditions met on a NEW task: 1 / 2 cleared, not resolved yet; 2) a second different task resolves it
+    one = c.post("/reassess", json={"learner_id": lid, "misconception": "M5", "problem_id": "product", "code": M5_TRANSFER_OK, "concept_answer": 1}).json()
+    assert one["resolved"] is False and one["failed_checks"] == ["enough_evidence"] and one["cleared_problems"] == ["product"] and one["needed"] == 2
+    ok = c.post("/reassess", json={"learner_id": lid, "misconception": "M5", "problem_id": "count_evens", "code": COUNT_EVENS_OK, "concept_answer": 1}).json()
+    assert ok["resolved"] is True and all(r["passed"] for r in ok["reasons"]) and ok["p_misconception"] < 0.15
     L = c.get(f"/learner/{lid}").json()
     assert L["mastery"]["M5_RETURN_IN_LOOP"]["resolved"] is True and L["mastery"]["M5_RETURN_IN_LOOP"]["mastery"] > d["mastery_after"]
-    assert [h["kind"] for h in L["history"]] == ["diagnose", "reassess"]
+    assert [h["kind"] for h in L["history"]] == ["diagnose", "reassess", "reassess"]
     assert all(0 <= v["mastery"] <= 1 for v in L["mastery"].values())
+
+
+def core(r):  # failed checks other than enough_evidence (one transfer is never enough on its own)
+    return [x for x in r["failed_checks"] if x != "enough_evidence"]
 
 
 def test_reassess_each_condition_blocks_resolution(c):
@@ -124,15 +132,15 @@ def test_reassess_each_condition_blocks_resolution(c):
     base = {"learner_id": lid, "misconception": "M5", "problem_id": "product", "code": M5_TRANSFER_OK, "concept_answer": 1}
     # concept wrong
     r = c.post("/reassess", json={**base, "concept_answer": 0}).json()
-    assert not r["resolved"] and r["failed_checks"] == ["concept_answer"] and r["concept_explanation"]
+    assert not r["resolved"] and core(r) == ["concept_answer"] and r["concept_explanation"]
     # still has the misconception (tests fail and model detects it)
     r = c.post("/reassess", json={**base, "code": M5_TRANSFER_BAD}).json()
     assert not r["resolved"] and "tests_pass" in r["failed_checks"] and "misconception_not_detected" in r["failed_checks"]
     # correct code but SAME task as the original diagnosis -> not accepted
     r = c.post("/reassess", json={**base, "problem_id": "sum_list", "code": SUM_OK}).json()
-    assert not r["resolved"] and r["failed_checks"] == ["new_task"]
+    assert not r["resolved"] and core(r) == ["new_task"]
     # letter / text answers are parsed
-    assert c.post("/reassess", json={**base, "concept_answer": "b"}).json()["resolved"] is True
+    assert "concept_answer" not in c.post("/reassess", json={**base, "concept_answer": "b"}).json()["failed_checks"]
     # validation
     assert c.post("/reassess", json={**base, "problem_id": "square"}).status_code == 422
     assert c.post("/reassess", json={**base, "concept_id": "zzz"}).status_code == 422
@@ -143,7 +151,8 @@ def test_reassess_each_condition_blocks_resolution(c):
 def test_failed_reassess_lowers_mastery_and_clears_resolved(c):
     lid = "learner-3"
     base = {"learner_id": lid, "misconception": "M5", "problem_id": "product", "code": M5_TRANSFER_OK, "concept_answer": 1}
-    assert c.post("/reassess", json=base).json()["resolved"]
+    c.post("/reassess", json=base)
+    assert c.post("/reassess", json={**base, "problem_id": "count_evens", "code": COUNT_EVENS_OK}).json()["resolved"]
     hi = c.get(f"/learner/{lid}").json()["mastery"]["M5_RETURN_IN_LOOP"]["mastery"]
     assert not c.post("/reassess", json={**base, "code": M5_TRANSFER_BAD}).json()["resolved"]
     now = c.get(f"/learner/{lid}").json()["mastery"]["M5_RETURN_IN_LOOP"]

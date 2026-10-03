@@ -9,7 +9,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import FileResponse, Response
 from pydantic import BaseModel, Field
 
-from . import concept, custom, db, explain, hint, insights, ratelimit, sandbox
+from . import bkt, concept, custom, db, explain, hint, insights, ratelimit, sandbox
 from .diagnoser import DiagnoserService
 from relearn_ml import fixer, references
 from .paths import CONTENT, DOCS, MODEL_PATH
@@ -222,16 +222,33 @@ def reassess(body: ReassessIn):
         dict(check="concept_answer", passed=concept_ok,
              detail="Concept question answered correctly." if concept_ok else "Concept question answered incorrectly."),
     ]
+    # resolution v2: BKT-style P(misconception) + >= 2 DIFFERENT cleared transfer problems (same problem never counts twice)
+    clean = bool(reasons[0]["passed"] and passed and clear)
+    p_before = 1 - db.mastery_value(body.learner_id, m)
+    cleared = db.cleared_problems(body.learner_id, m)
+    counted = not (clean and p["id"] in cleared)
+    p_after = bkt.update(p_before, clean) if counted else bkt.clamp(p_before)
+    if clean:
+        cleared = cleared | {p["id"]}
+    enough = bkt.is_resolved(p_after, cleared)
+    reasons.append(dict(check="enough_evidence", passed=enough,
+                        detail=f"{len(cleared)} / {bkt.NEEDED_PROBLEMS} different transfer problems cleared; estimated chance the "
+                               f"misconception is still there: {p_after:.0%} (needs < {bkt.P_RESOLVED:.0%})."
+                               + ("" if counted else " This problem was already cleared, so it does not count again.")))
     resolved = all(r["passed"] for r in reasons)
-
-    def upd(v, was):
-        return (max(v + (1 - v) * 0.6, 0.8), True) if resolved else (v * 0.85, False)  # a verified resolution always lands in the "good" band
     after = db.record(body.learner_id, "reassess", p["id"], d["label"], d["confidence"], passed, body.code,
-                      dict(reasons=reasons, concept_id=q["id"], concept_answer=body.concept_answer),
-                      misconception=m, resolved=resolved, update=upd)
+                      dict(reasons=reasons, concept_id=q["id"], concept_answer=body.concept_answer, p_before=p_before, p_after=p_after),
+                      misconception=m, resolved=resolved, update=lambda v, was: (1 - p_after, resolved))
+    db.add_evidence(body.learner_id, m, p["id"], clean, counted, p_before, p_after)
     failed = [r["check"] for r in reasons if not r["passed"]]
-    return dict(resolved=resolved, misconception=m, reasons=reasons, failed_checks=failed,
-                message="Misconception resolved." if resolved else "Not resolved yet: " + ", ".join(failed) + ".",
+    if resolved:
+        msg = "Misconception resolved."
+    elif failed == ["enough_evidence"]:
+        msg = f"Well done - {len(cleared)} / {bkt.NEEDED_PROBLEMS} cleared. Solve one more different problem to confirm."
+    else:
+        msg = "Not resolved yet: " + ", ".join(failed) + "."
+    return dict(resolved=resolved, misconception=m, reasons=reasons, failed_checks=failed, message=msg,
+                cleared_problems=sorted(cleared), needed=bkt.NEEDED_PROBLEMS, p_misconception=round(p_after, 4), evidence_counted=counted,
                 diagnosis=dict(label=d["label"], confidence=d["confidence"], evidence=d["evidence"]), test_results=clean_tests(res),
                 concept_explanation=None if concept_ok else f"Correct answer: {q['options'][q['answer']]}", mastery_after=after)
 

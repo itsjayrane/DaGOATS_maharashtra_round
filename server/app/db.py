@@ -32,6 +32,9 @@ def init():
             source TEXT, reason TEXT, misconception TEXT, situation TEXT);
         CREATE INDEX IF NOT EXISTS ix_hint ON hint_events(learner_id, ts);
         CREATE TABLE IF NOT EXISTS custom_problems(id TEXT PRIMARY KEY, created REAL, problem TEXT);
+        CREATE TABLE IF NOT EXISTS transfer_evidence(id INTEGER PRIMARY KEY AUTOINCREMENT, ts REAL, learner_id TEXT, misconception TEXT,
+            problem_id TEXT, clean INTEGER, counted INTEGER, p_before REAL, p_after REAL);
+        CREATE INDEX IF NOT EXISTS ix_evidence ON transfer_evidence(learner_id, misconception, ts);
         """)
     if os.environ.get("RELEARN_SEED_DEMO") == "1":
         seed_demo()
@@ -62,6 +65,27 @@ def record(lid, kind, problem_id, label, confidence, passed, code, detail, misco
                   " VALUES(?,?,?,?,?,?,?,?,?,?,?,?)",
                   (lid, time.time(), kind, problem_id, misconception, label, confidence, int(passed), int(resolved), after, code, json.dumps(detail, default=str)))
         return after
+
+
+def mastery_value(lid, misconception):
+    with conn() as c:
+        r = c.execute("SELECT value FROM mastery WHERE learner_id=? AND misconception=?", (lid, misconception)).fetchone()
+    return r["value"] if r else PRIOR
+
+
+def cleared_problems(lid, misconception):
+    """Distinct problems with a clean transfer since the misconception was last diagnosed (a new diagnosis starts over)."""
+    with conn() as c:
+        r = c.execute("SELECT MAX(ts) t FROM attempts WHERE learner_id=? AND misconception=? AND kind='diagnose'", (lid, misconception)).fetchone()
+        since = r["t"] or 0
+        return {x["problem_id"] for x in c.execute("SELECT DISTINCT problem_id FROM transfer_evidence WHERE learner_id=? AND misconception=?"
+                                                    " AND clean=1 AND counted=1 AND ts>?", (lid, misconception, since))}
+
+
+def add_evidence(lid, misconception, problem_id, clean, counted, p_before, p_after):
+    with _lock, conn() as c:
+        c.execute("INSERT INTO transfer_evidence(ts, learner_id, misconception, problem_id, clean, counted, p_before, p_after) VALUES(?,?,?,?,?,?,?,?)",
+                  (time.time(), lid, misconception, problem_id, int(clean), int(counted), p_before, p_after))
 
 
 def last_diagnosed_problem(lid, misconception):
