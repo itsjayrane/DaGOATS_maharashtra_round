@@ -1,10 +1,11 @@
 """Wraps the trained model: probabilities + human-readable evidence (model feature contributions + observed behaviour)."""
 import ast
+import json
 
 import joblib
 import numpy as np
 
-from .paths import MODEL_PATH
+from .paths import ML_DIR, MODEL_PATH
 from relearn_ml.features import featurize  # noqa: E402  (ml/ is put on sys.path by paths.py)
 from relearn_ml.labels import LABELS, TWIN_OF  # noqa: E402
 
@@ -53,6 +54,7 @@ DESC = {
 }
 
 
+STRICT_T = 0.6  # minimum confidence on custom (out-of-distribution) problems
 NO_ATTEMPT_MSG = "This is still the starter code - write your solution, then submit."
 
 
@@ -77,6 +79,8 @@ class DiagnoserService:
         self.model = art["model"]
         self.config = art.get("config")
         self.names = self.model.feature_names()
+        tj = ML_DIR / "artifacts" / "threshold.json"  # UNKNOWN_T, tuned on out-of-fold data by ml/train.py
+        self.unknown_t = json.loads(tj.read_text(encoding="utf-8"))["unknown_t"] if tj.exists() else 0.0
 
     def _contrib(self, feats, k, top=4):
         X = self.model._X([feats])
@@ -94,12 +98,15 @@ class DiagnoserService:
                                 text=DESC[name].format(v=int(v) if v == int(v) else round(v, 2), pct=f"{round(v * 100)}%")))
         return out
 
-    def diagnose(self, code, problem, exec_res):
+    def diagnose(self, code, problem, exec_res, strict=False):
+        """strict=True (custom, out-of-distribution problems) demands more confidence before naming a misconception."""
         if exec_res["status"] != "ok":
-            return dict(label=None, confidence=None, probabilities=None, ambiguous=False, runner_up=None,
-                        evidence=[dict(kind="error", text=exec_res.get("error", exec_res["status"]))])
+            msg = exec_res.get("error", exec_res["status"])
+            return dict(label=None, confidence=None, probabilities=None, ambiguous=False, runner_up=None, verdict="unknown", unknown=True,
+                        unknown_reason=msg, closest_guess=None, evidence=[dict(kind="error", text=msg)])
         if is_no_attempt(code, problem["fn"]):
             return dict(label=None, confidence=None, probabilities=None, ambiguous=False, runner_up=None, no_attempt=True,
+                        verdict="unknown", unknown=True, unknown_reason=NO_ATTEMPT_MSG, closest_guess=None,
                         error=NO_ATTEMPT_MSG, evidence=[dict(kind="error", text=NO_ATTEMPT_MSG)])
         feats = featurize(code, problem, exec_res)
         P = self.model.predict_proba([feats])[0]
@@ -117,5 +124,23 @@ class DiagnoserService:
             if bad:
                 what = f"raised {bad['exc']}" if bad["exc"] else ("returned None" if bad["none"] else f"returned {bad['got']!r}")
                 ev.append(dict(kind="behavior", text=f"{problem['fn']}({', '.join(map(repr, bad['args']))}) {what}; expected {bad['expected']!r}."))
+        verdict, reason = self._verdict(label, float(P[k]), tests, strict)
+        mis = [i for i, l in enumerate(LABELS) if l.startswith("M")]
+        g = max(mis, key=lambda i: P[i])
         return dict(label=label, confidence=round(float(P[k]), 4), probabilities={LABELS[i]: round(float(P[i]), 4) for i in range(len(LABELS))},
-                    ambiguous=ambiguous, runner_up=dict(label=runner, probability=round(float(P[order[1]]), 4)), evidence=ev)
+                    ambiguous=ambiguous, runner_up=dict(label=runner, probability=round(float(P[order[1]]), 4)), evidence=ev,
+                    verdict=verdict, unknown=verdict == "unknown", unknown_reason=reason,
+                    closest_guess=dict(label=LABELS[g], probability=round(float(P[g]), 4)))
+
+    def _verdict(self, label, conf, tests, strict):
+        """'correct' | 'misconception' | 'unknown' (+ reason). Unknown = the model should not name a misconception."""
+        if tests and all(t["ok"] for t in tests):
+            return "correct", None
+        t = max(self.unknown_t, STRICT_T) if strict else self.unknown_t
+        if label == "OTHER_BUG":
+            return "unknown", "This bug does not look like any of the 8 common mistakes we know."
+        if label == "CORRECT":
+            return "unknown", "Some tests fail, but the code does not match a common mistake."
+        if conf < t:
+            return "unknown", f"Not confident enough to name a mistake ({conf:.0%} < {t:.0%})."
+        return "misconception", None

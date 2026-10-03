@@ -1,31 +1,125 @@
 {
  "n": 40,
- "accuracy": 0.95,
+ "accuracy": 0.9,
  "accuracy_ci95": [
-  0.834958291820748,
-  0.9861796228538989
+  0.7694792561952611,
+  0.9604211124044252
  ],
- "correct": 38,
- "macro_f1": 0.946031746031746,
+ "correct": 36,
+ "abstention": {
+  "unknown_t": 0.1362,
+  "flagged_unknown": 4,
+  "answered": 36,
+  "accuracy_when_answering": 1.0
+ },
+ "other_bug": {
+  "n": 10,
+  "flagged_unknown": 9,
+  "confidently_mislabelled": 1,
+  "items": [
+   {
+    "id": "O01",
+    "problem": "sum_to_n",
+    "note": "squares n instead of adding 1..n",
+    "predicted": "OTHER_BUG",
+    "confidence": 0.881,
+    "unknown": true
+   },
+   {
+    "id": "O02",
+    "problem": "average",
+    "note": "divides by one too many",
+    "predicted": "OTHER_BUG",
+    "confidence": 0.929,
+    "unknown": true
+   },
+   {
+    "id": "O03",
+    "problem": "celsius_to_f",
+    "note": "fraction upside down",
+    "predicted": "OTHER_BUG",
+    "confidence": 0.884,
+    "unknown": true
+   },
+   {
+    "id": "O04",
+    "problem": "percentage",
+    "note": "part and whole swapped",
+    "predicted": "OTHER_BUG",
+    "confidence": 0.908,
+    "unknown": true
+   },
+   {
+    "id": "O05",
+    "problem": "square",
+    "note": "doubles instead of squaring",
+    "predicted": "OTHER_BUG",
+    "confidence": 0.901,
+    "unknown": true
+   },
+   {
+    "id": "O06",
+    "problem": "is_even",
+    "note": "tests for odd",
+    "predicted": "OTHER_BUG",
+    "confidence": 0.902,
+    "unknown": true
+   },
+   {
+    "id": "O07",
+    "problem": "count_evens",
+    "note": "counts the odd numbers",
+    "predicted": "OTHER_BUG",
+    "confidence": 0.764,
+    "unknown": true
+   },
+   {
+    "id": "O08",
+    "problem": "product",
+    "note": "adds instead of multiplying",
+    "predicted": "OTHER_BUG",
+    "confidence": 0.805,
+    "unknown": true
+   },
+   {
+    "id": "O09",
+    "problem": "greet",
+    "note": "missing comma in the text",
+    "predicted": "OTHER_BUG",
+    "confidence": 0.897,
+    "unknown": true
+   },
+   {
+    "id": "O10",
+    "problem": "multiples",
+    "note": "makes n multiples instead of stopping at n",
+    "predicted": "M1_RANGE_OFF_BY_ONE",
+    "confidence": 0.57,
+    "unknown": false
+   }
+  ],
+  "description": "10 hand-written wrong-formula snippets (OTHER_BUG); never used for training or tuning"
+ },
+ "macro_f1": 0.9312169312169313,
  "twin_pairs": {
   "M1_M2": {
    "n": 8,
-   "exact": 0.875,
-   "correct": 7,
-   "swapped": 0.125,
+   "exact": 0.625,
+   "correct": 5,
+   "swapped": 0.0,
    "ci95": [
-    0.5291051942301386,
-    0.9775830911367038
+    0.30573785458380187,
+    0.863158240538479
    ]
   },
   "M4_M5": {
    "n": 8,
-   "exact": 0.875,
-   "correct": 7,
+   "exact": 1.0,
+   "correct": 8,
    "swapped": 0.0,
    "ci95": [
-    0.5291051942301386,
-    0.9775830911367038
+    0.6755843804891231,
+    1.0
    ]
   }
  },
@@ -37,18 +131,18 @@
   },
   "M1_RANGE_OFF_BY_ONE": {
    "support": 4,
-   "recall": 1.0,
-   "f1": 0.8
-  },
-  "M2_INDEX_FROM_ONE": {
-   "support": 4,
    "recall": 0.75,
    "f1": 0.8571428571428571
   },
+  "M2_INDEX_FROM_ONE": {
+   "support": 4,
+   "recall": 0.5,
+   "f1": 0.6666666666666666
+  },
   "M3_PRINT_NOT_RETURN": {
    "support": 4,
-   "recall": 1.0,
-   "f1": 1.0
+   "recall": 0.75,
+   "f1": 0.8571428571428571
   },
   "M4_ACCUMULATOR_RESET": {
    "support": 4,
@@ -57,8 +151,8 @@
   },
   "M5_RETURN_IN_LOOP": {
    "support": 4,
-   "recall": 0.75,
-   "f1": 0.8571428571428571
+   "recall": 1.0,
+   "f1": 1.0
   },
   "M6_FLOAT_DIVISION": {
    "support": 4,
@@ -78,28 +172,77 @@
  },
  "errors": [
   {
-   "runner_up": "M2_INDEX_FROM_ONE",
+   "runner_up": "M1_RANGE_OFF_BY_ONE",
+   "id": "R13",
+   "problem": "count_evens",
+   "true": "M1_RANGE_OFF_BY_ONE",
+   "predicted": "OTHER_BUG",
+   "confidence": 0.751,
+   "p_true": 0.078,
+   "note": "bound computed in a variable (len - 1)",
+   "code": "def count_evens(nums):\n    n_even = 0\n    last = len(nums) - 1\n    for i in range(last):\n        if nums[i] % 2 == 0:\n            n_even += 1\n    return n_even\n",
+   "signals": {
+    "range_bare_any": 1,
+    "pass_frac": 0.4
+   },
+   "why": "The bound is computed in a variable (`last = len(nums) - 1`, then `range(last)`), so no off-by-one signature fires; with no recognisable pattern the model abstains (top-1 OTHER_BUG -> 'unknown') instead of guessing."
+  },
+  {
+   "runner_up": "M1_RANGE_OFF_BY_ONE",
    "id": "R16",
    "problem": "sum_list",
    "true": "M2_INDEX_FROM_ONE",
-   "predicted": "M1_RANGE_OFF_BY_ONE",
-   "confidence": 0.995,
-   "p_true": 0.002,
+   "predicted": "OTHER_BUG",
+   "confidence": 0.466,
+   "p_true": 0.013,
    "note": "while starting at 1",
    "code": "def sum_list(numbers):\n    total = 0\n    i = 1\n    while i < len(numbers):\n        total += numbers[i]\n        i += 1\n    return total\n",
    "signals": {
     "pass_frac": 0.2
    },
-   "why": "A `while` loop that starts at index 1 silently skips the first item. No AST signal covers a while-loop start at 1 (only `range(1, ...)` is detected) and every while-based M2 example in training crashed with IndexError, so a quiet wrong sum was read as M1."
+   "why": "A `while` loop starting at index 1 skips the first item, but no M2 signature covers while-loops, so nothing misconception-shaped fires and the model abstains ('unknown')."
   },
   {
-   "runner_up": "M5_RETURN_IN_LOOP",
+   "runner_up": "M2_INDEX_FROM_ONE",
+   "id": "R17",
+   "problem": "product",
+   "true": "M2_INDEX_FROM_ONE",
+   "predicted": "OTHER_BUG",
+   "confidence": 0.687,
+   "p_true": 0.155,
+   "note": "enumerate(start=1) used as an index",
+   "code": "def product(nums):\n    result = 1\n    for i, x in enumerate(nums, 1):\n        result *= nums[i]   # i is the position, starting from 1\n    return result\n",
+   "signals": {
+    "pass_frac": 0.25,
+    "exc_index": 0.75
+   },
+   "why": "`enumerate(nums, 1)` used as an index is not one of the M2 signatures; no signature fires, so the model abstains ('unknown')."
+  },
+  {
+   "runner_up": "M3_PRINT_NOT_RETURN",
+   "id": "R21",
+   "problem": "square",
+   "true": "M3_PRINT_NOT_RETURN",
+   "predicted": "OTHER_BUG",
+   "confidence": 0.596,
+   "p_true": 0.08,
+   "note": "print with label and explicit return None",
+   "code": "def square(n):\n    print(\"square is\", n ** 2)\n    return None\n",
+   "signals": {
+    "none_frac": 1.0
+   },
+   "why": "An explicit `return None` after the print defeats the print-without-return signature; with only a wrong value and no known pattern, the model abstains ('unknown')."
+  }
+ ],
+ "close_calls": [
+  {
+   "runner_up": "M1_RANGE_OFF_BY_ONE",
    "id": "R28",
    "problem": "count_evens",
    "true": "M5_RETURN_IN_LOOP",
-   "predicted": "M1_RANGE_OFF_BY_ONE",
-   "confidence": 0.504,
-   "p_true": 0.456,
+   "predicted": "M5_RETURN_IN_LOOP",
+   "confidence": 0.494,
+   "p_true": 0.494,
    "note": "return directly in while body",
    "code": "def count_evens(nums):\n    count = 0\n    i = 0\n    while i < len(nums):\n        if nums[i] % 2 == 0:\n            count = count + 1\n        i = i + 1\n        return count\n    return count\n",
    "signals": {
@@ -107,40 +250,25 @@
     "ret_direct_in_loop": 1,
     "pass_frac": 0.6
    },
-   "why": "The only structural signal that fired was a `return` directly in the `while` body, and the code still passes 3 of 5 tests because the first item often decides the answer; the model split 0.50 M1 vs 0.46 M5."
-  }
- ],
- "close_calls": [
-  {
-   "runner_up": "M5_RETURN_IN_LOOP",
-   "id": "R15",
-   "problem": "nth_item",
-   "true": "M2_INDEX_FROM_ONE",
-   "predicted": "M2_INDEX_FROM_ONE",
-   "confidence": 0.278,
-   "p_true": 0.278,
-   "note": "items[n] with try/except fallback",
-   "code": "def nth_item(items, n):\n    try:\n        return items[n]\n    except IndexError:\n        return items[-1]\n",
-   "signals": {
-    "sub_idx_bare_param": 1,
-    "pass_frac": 0.33
-   },
-   "why": "`try/except` swallows the IndexError that normally gives M2 away, leaving only the weak `items[n]` signal; 0.28 (M2) vs 0.27 (M5) is a coin flip that happened to land right."
+   "why": "Right, but only 52% sure: the one structural signal is a `return` inside the `while` body, and the code still passes 3 of 5 tests because the first item often decides the answer."
   },
   {
-   "runner_up": "CORRECT",
-   "id": "R21",
-   "problem": "square",
-   "true": "M3_PRINT_NOT_RETURN",
-   "predicted": "M3_PRINT_NOT_RETURN",
-   "confidence": 0.48,
-   "p_true": 0.48,
-   "note": "print with label and explicit return None",
-   "code": "def square(n):\n    print(\"square is\", n ** 2)\n    return None\n",
+   "runner_up": "M2_INDEX_FROM_ONE",
+   "id": "R35",
+   "problem": "replace_at",
+   "true": "M7_STRING_MUTABLE",
+   "predicted": "M7_STRING_MUTABLE",
+   "confidence": 0.277,
+   "p_true": 0.277,
+   "note": "item assignment on a string alias",
+   "code": "def replace_at(s, i, ch):\n    chars = s\n    chars[i] = ch\n    return \"\".join(chars)\n",
    "signals": {
-    "none_frac": 1.0
+    "sub_idx_bare_param": 1,
+    "alias_of_param": 1,
+    "mutate_alias": 1,
+    "exc_type": 1.0
    },
-   "why": "An explicit `return None` defeats the structural 'prints but never returns' signal; only behavioural evidence (printed output, returned None) carried the M3 call."
+   "why": "Right, but only 29% sure: `chars[i] = ch` with the parameter `i` also fires an M2 indexing signature, and `chars = s` fires an M8 aliasing one, so three misconceptions compete."
   }
  ],
  "model": "trained on all 22 problems",

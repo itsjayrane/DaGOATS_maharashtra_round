@@ -71,6 +71,46 @@ function RealisticCard({ r }) {
   )
 }
 
+function AbstentionCard({ m }) {
+  const a = m.abstention, r = m.realistic, u = m.unseen
+  if (!a && !u) return null
+  const pc = (x) => (typeof x === 'number' ? `${Math.round(x * 100)}%` : '-')
+  return (
+    <Card title="When the model is not sure" right={<Pill tone="warn">abstention</Pill>}>
+      <p className="mb-4 text-sm text-muted">
+        The model may answer &quot;not sure&quot; instead of naming one of the 8 mistakes: when its top guess is <span className="font-mono">OTHER_BUG</span> (a real bug that is
+        none of the 8) or its confidence is below the threshold. A &quot;not sure&quot; answer never changes mastery and never shows a lesson that might not fit.
+      </p>
+      <div className="grid grid-cols-2 gap-3 lg:grid-cols-4">
+        {a && <Tile label="Threshold (tuned out-of-fold)" value={a.unknown_t.toFixed(2)} sub={`answers ${pc(a.coverage_known_oof)} of known-class samples`} />}
+        {a && <Tile label="Held-out: known answered" value={pc(a.holdout_coverage_known)} sub={`accuracy when answering ${pc(a.holdout_accuracy_when_answering)}`} />}
+        {r?.other_bug && <Tile label="Unknown bugs flagged" value={`${r.other_bug.flagged_unknown}/${r.other_bug.n}`} sub="hand-written wrong formulas" />}
+        {u && <Tile label="Never-seen mistake flagged" value={pc(u.mean_flagged_unknown)} sub={`confidently wrong ${pc(u.mean_confidently_mislabelled)}`} />}
+      </div>
+      {u && (
+        <div className="mt-5 overflow-x-auto">
+          <h3 className="mb-2 text-xs font-semibold uppercase tracking-wide text-muted">Leave-one-misconception-out (the model never saw that mistake)</h3>
+          <table className="w-full text-left text-sm">
+            <thead className="text-xs text-muted"><tr><th className="py-1">Held-out mistake</th><th>n</th><th>Flagged &quot;not sure&quot; (good)</th><th>Confidently wrong (dangerous)</th><th>Wrongly &quot;not sure&quot; on known</th></tr></thead>
+            <tbody>
+              {Object.entries(u.per_class).map(([k, v]) => (
+                <tr key={k} className="border-t border-line">
+                  <td className="py-2"><span className="font-medium">{k.split('_')[0]}</span> <span className="text-xs text-muted">{k}</span></td>
+                  <td className="tabular-nums text-muted">{v.n}</td>
+                  <td className="tabular-nums">{pc(v.flagged_unknown)}</td>
+                  <td className="tabular-nums">{pc(v.confidently_mislabelled)}</td>
+                  <td className="tabular-nums text-muted">{pc(v.false_unknown_on_known)}</td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+          <p className="mt-2 text-xs text-muted">Overall: wrongly &quot;not sure&quot; on known mistakes {pc(u.false_unknown_rate_on_known)}. Source: docs/unseen_eval.json.</p>
+        </div>
+      )}
+    </Card>
+  )
+}
+
 export default function Eval() {
   const [m, setM] = useState(null)
   const [error, setError] = useState('')
@@ -85,6 +125,8 @@ export default function Eval() {
   return (
     <div className="space-y-6">
       <RealisticCard r={m.realistic} />
+
+      <AbstentionCard m={m} />
 
       <Card title="Template held-out set" right={<Pill tone="warn">optimistic upper bound</Pill>}>
         <div className="mb-4 rounded-lg border border-warn/40 bg-warn/10 p-3 text-sm text-warn">

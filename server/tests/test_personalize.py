@@ -116,7 +116,7 @@ def _corpora():
     seen, tmpl = set(), []
     for line in open(ML / "data" / "dataset.jsonl", encoding="utf-8"):
         r = json.loads(line)
-        if r["label"] != "CORRECT" and (r["problem"], r["norm"]) not in seen:
+        if r["label"].startswith("M") and (r["problem"], r["norm"]) not in seen:  # lessons exist for M1..M8 only (OTHER_BUG -> /explain)
             seen.add((r["problem"], r["norm"]))
             tmpl.append(dict(problem=r["problem"], label=r["label"], code=r["code"]))
     return [x for x in real if x["label"] != "CORRECT"], tmpl

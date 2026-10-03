@@ -92,7 +92,22 @@ AST_KEYS = ["syntax_error", "n_for", "n_while", "n_print", "has_return", "n_retu
             "floordiv_const", "floordiv_nonconst", "int_call", "round_call", "float_call", "sub_store", "sub_store_on_param",
             "discarded_str_method", "alias_assign", "alias_of_param", "mutate_param", "mutate_alias", "copy_idiom",
             "list_call_param", "concat_list", "list_comp", "list_mult_container", "append_outer_name", "while_lt", "while_le",
-            "n_nodes", "print_no_return", "print_and_return"]
+            "n_nodes", "print_no_return", "print_and_return",
+            "sig_M1", "sig_M2", "sig_M3", "sig_M4", "sig_M5", "sig_M6", "sig_M7", "sig_M8", "sig_any"]
+
+# The AST features that ARE the misconceptions. Aggregated per misconception (sig_M1..sig_M8, sig_any) so the model can
+# generalise "some M2-style indexing signature fired" to problems whose exact pattern it never saw. OTHER_BUG samples are
+# defined as wrong programs that fire none of these (see mutants.py).
+SIGNATURE_KEYS = {
+    "M1": ["range_len_minus1", "range_start1_bare", "range_3arg_bare"],
+    "M2": ["sub_idx_len", "sub_idx_c1", "range_start1_len", "sub_idx_bare_param"],
+    "M3": ["print_no_return"],
+    "M4": ["reset_in_loop"],
+    "M5": ["ret_direct_in_loop", "ret_if_else_both"],
+    "M6": ["n_floordiv", "int_call"],
+    "M7": ["sub_store_on_param", "discarded_str_method"],
+    "M8": ["alias_of_param", "mutate_param", "list_mult_container", "append_outer_name"],
+}
 
 
 def _range(f, n):
@@ -307,6 +322,9 @@ def ast_features(code):
                 f["init_before_loop"] += 1
     f["print_no_return"] = int(f["n_print"] > 0 and f["n_return"] == 0)
     f["print_and_return"] = int(f["n_print"] > 0 and f["n_return"] > 0)
+    for m, keys in SIGNATURE_KEYS.items():
+        f[f"sig_{m}"] = int(sum(1 for k in keys if f[k]))
+    f["sig_any"] = int(sum(f[f"sig_{m}"] for m in SIGNATURE_KEYS))
     return f
 
 

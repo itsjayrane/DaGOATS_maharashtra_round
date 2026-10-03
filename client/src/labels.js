@@ -8,9 +8,10 @@ export const MISC = [
   ['M7_STRING_MUTABLE', 'M7', 'Strings are immutable'],
   ['M8_LIST_ALIASING', 'M8', 'b = a does not copy'],
 ]
-export const short = (l) => (l === 'CORRECT' ? 'OK' : l.split('_')[0])
+export const short = (l) => (l === 'CORRECT' ? 'OK' : l === 'OTHER_BUG' ? 'Other' : l.split('_')[0])
 export const nice = (l) => {
   if (l === 'CORRECT') return 'Correct'
+  if (l === 'OTHER_BUG') return 'A different kind of bug'
   const m = MISC.find((x) => x[0] === l)
   return m ? `${m[1]} · ${m[2]}` : l
 }

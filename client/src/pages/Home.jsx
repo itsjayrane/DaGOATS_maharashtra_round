@@ -3,6 +3,7 @@ import { useSearchParams } from 'react-router-dom'
 import { api, learnerId } from '../api'
 import CodeEditor from '../components/CodeEditor'
 import DiagnosisCard from '../components/DiagnosisCard'
+import ExplainPanel from '../components/ExplainPanel'
 import HintPanel, { MAX_HINTS } from '../components/HintPanel'
 import InterventionPanel from '../components/InterventionPanel'
 import TransferPanel from '../components/TransferPanel'
@@ -84,7 +85,9 @@ export default function Home() {
     setTimeout(() => proveRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' }), 50)
   }
 
-  const misconception = diag?.label && diag.label !== 'CORRECT' ? diag.label : null
+  // only a confident misconception gets a lesson; an unknown bug gets a step-by-step explanation instead
+  const misconception = diag?.verdict ? (diag.verdict === 'misconception' ? diag.label : null) : (diag?.label && diag.label !== 'CORRECT' ? diag.label : null)
+  const unknownBug = diag?.verdict === 'unknown' && diag?.status === 'ok' && diag?.label
 
   return (
     <div className="space-y-6">
@@ -140,6 +143,7 @@ export default function Home() {
           {diag.label === 'CORRECT' && (
             <Card><p className="text-sm text-good">Nice - no misconception detected.{showDemo && ' Try a demo bug above to see the diagnosis → intervention → proof loop.'}</p></Card>
           )}
+          {unknownBug && <ExplainPanel key={`explain:${submitted?.n}`} problemId={submitted?.pid ?? pid} code={submitted?.code ?? code} />}
           {misconception && <InterventionPanel key={`${misconception}:${submitted?.n}`} label={misconception} problemId={submitted?.pid ?? pid} code={submitted?.code ?? code} learnerId={lid} onProve={prove} />}
         </div>
       )}

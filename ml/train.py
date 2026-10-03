@@ -41,6 +41,31 @@ def fit(rows, cfg):
     return Diagnoser(**cfg).fit(rows, [r["label"] for r in rows])
 
 
+TARGET_COVERAGE = 0.90
+
+
+def calibrate(P, T):
+    z = np.log(np.clip(P, 1e-9, 1)) / T
+    z -= z.max(1, keepdims=True)
+    e = np.exp(z)
+    return e / e.sum(1, keepdims=True)
+
+
+def is_unknown(P, t):
+    return (P.argmax(1) == L2I["OTHER_BUG"]) | (P.max(1) < t)
+
+
+def tune_unknown_threshold(P, y):
+    known = y != L2I["OTHER_BUG"]
+    best = 0.0
+    for t in np.unique(np.round(P.max(1)[known], 4)):
+        if (~is_unknown(P[known], t)).mean() >= TARGET_COVERAGE:
+            best = max(best, float(t))
+    cov = float((~is_unknown(P[known], best)).mean())
+    other = float(is_unknown(P[~known], best).mean()) if (~known).any() else float("nan")
+    return best, cov, other
+
+
 def main():
     DOCS.mkdir(exist_ok=True); ART.mkdir(exist_ok=True)
     rows = load()
@@ -62,6 +87,18 @@ def main():
     T = fit_temperature(oof_by[best], ytr)
     print(f"selected: {best}   temperature T={T:.2f}")
 
+    # --- abstention: UNKNOWN_T tuned on out-of-fold calibrated probabilities (train problems only, grouped CV) ---
+    # verdict "unknown" = top-1 is OTHER_BUG or the top probability is below UNKNOWN_T.
+    # UNKNOWN_T = the highest threshold that still answers >= 90% of known-class (CORRECT + M1..M8) samples.
+    Pc_oof = calibrate(oof_by[best], T)
+    UNKNOWN_T, cov_oof, other_flag_oof = tune_unknown_threshold(Pc_oof, ytr)
+    print(f"UNKNOWN_T={UNKNOWN_T:.3f}  known-class coverage (OOF)={cov_oof:.3f}  OTHER_BUG flagged unknown (OOF)={other_flag_oof:.3f}")
+    (ART / "threshold.json").write_text(json.dumps(dict(
+        unknown_t=UNKNOWN_T, target_coverage=TARGET_COVERAGE, coverage_known_oof=cov_oof, other_bug_flagged_oof=other_flag_oof,
+        temperature=float(T), method="highest threshold with >= 90% of known-class out-of-fold samples answered "
+                                     "(grouped 5-fold CV over the training problems); unknown = top-1 OTHER_BUG or max prob < unknown_t"),
+        indent=1), encoding="utf-8")
+
     # --- train on train split, score on unseen problems ---
     model = fit(tr, CONFIGS[best]); model.T = T
     P = model.predict_proba(te); pred = P.argmax(1)
@@ -78,6 +115,14 @@ def main():
                             in_pair=float(np.isin(pred[m], [ia, ib]).mean()) if m.any() else float("nan"),
                             swapped=float(((pred[m] == (ia + ib - yte[m]))).mean()) if m.any() else float("nan"))
     per_prob = {p: float(accuracy_score(yte[[r["problem"] == p for r in te]], pred[[r["problem"] == p for r in te]])) for p in HOLDOUT}
+    unk = is_unknown(P, UNKNOWN_T)
+    known_te = yte != L2I["OTHER_BUG"]
+    abstention = dict(unknown_t=UNKNOWN_T, coverage_known_oof=cov_oof, other_bug_flagged_oof=other_flag_oof,
+                      holdout_coverage_known=float((~unk[known_te]).mean()),
+                      holdout_other_bug_flagged=float(unk[~known_te].mean()) if (~known_te).any() else None,
+                      holdout_accuracy_when_answering=float((pred[known_te & ~unk] == yte[known_te & ~unk]).mean()),
+                      holdout_n_other_bug=int((~known_te).sum()))
+    print("abstention (holdout):", {k: round(v, 3) if isinstance(v, float) else v for k, v in abstention.items()})
 
     print(f"\nHELD-OUT (unseen problems {HOLDOUT})\n  accuracy={acc:.3f}  macro-F1={mf1:.3f}")
     for (a, b), t in twin.items():
@@ -144,6 +189,7 @@ def main():
         holdout=dict(accuracy=float(acc), macro_f1=float(mf1), per_problem_accuracy=per_prob,
                      per_class={l: dict(precision=rep[l]["precision"], recall=rep[l]["recall"], f1=rep[l]["f1-score"], support=int(rep[l]["support"])) for l in LABELS},
                      twin_pairs={f"{a.split('_')[0]}_{b.split('_')[0]}": t for (a, b), t in twin.items()}),
+        abstention=abstention,
         caveat="Held-out score is optimistic: samples are variants of a few dozen templates. See docs/metrics.md."), indent=1), encoding="utf-8")
 
     # --- save models ---

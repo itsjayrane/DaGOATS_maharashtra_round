@@ -10,20 +10,24 @@ import csv, json, math, pathlib, re, sys
 ROOT = pathlib.Path(__file__).resolve().parent
 DOCS = ROOT.parent / "docs"
 CSV = ROOT / "data" / "realistic_test.csv"
+OTHER_CSV = ROOT / "data" / "realistic_other.csv"  # 10 hand-written OTHER_BUG snippets, evaluated separately
 START, END = "<!-- realistic:start -->", "<!-- realistic:end -->"
 sys.path.insert(0, str(ROOT))
 
 # One-line reasons for the misclassifications, written by hand after reading the model's output for each
 # failure (keys are sample ids from the CSV). Samples not listed here have no explanation attached.
 WHY = {
-    "R16": "A `while` loop that starts at index 1 silently skips the first item. No AST signal covers a while-loop start at 1 (only `range(1, ...)` "
-           "is detected) and every while-based M2 example in training crashed with IndexError, so a quiet wrong sum was read as M1.",
-    "R28": "The only structural signal that fired was a `return` directly in the `while` body, and the code still passes 3 of 5 tests because the first item "
-           "often decides the answer; the model split 0.50 M1 vs 0.46 M5.",
-    "R15": "`try/except` swallows the IndexError that normally gives M2 away, leaving only the weak `items[n]` signal; 0.28 (M2) vs 0.27 (M5) "
-           "is a coin flip that happened to land right.",
-    "R21": "An explicit `return None` defeats the structural 'prints but never returns' signal; only behavioural evidence (printed output, "
-           "returned None) carried the M3 call.",
+    "R13": "The bound is computed in a variable (`last = len(nums) - 1`, then `range(last)`), so no off-by-one signature fires; "
+           "with no recognisable pattern the model abstains (top-1 OTHER_BUG -> 'unknown') instead of guessing.",
+    "R16": "A `while` loop starting at index 1 skips the first item, but no M2 signature covers while-loops, so nothing "
+           "misconception-shaped fires and the model abstains ('unknown').",
+    "R17": "`enumerate(nums, 1)` used as an index is not one of the M2 signatures; no signature fires, so the model abstains ('unknown').",
+    "R21": "An explicit `return None` after the print defeats the print-without-return signature; with only a wrong value and "
+           "no known pattern, the model abstains ('unknown').",
+    "R28": "Right, but only 52% sure: the one structural signal is a `return` inside the `while` body, and the code still passes "
+           "3 of 5 tests because the first item often decides the answer.",
+    "R35": "Right, but only 29% sure: `chars[i] = ch` with the parameter `i` also fires an M2 indexing signature, and "
+           "`chars = s` fires an M8 aliasing one, so three misconceptions compete.",
 }
 CLOSE = 0.6  # a correct prediction below this confidence is reported as a "close call"
 
@@ -81,7 +85,27 @@ def run():
                                p_true=round(float(P[i][LABELS.index(y[i])]), 3), note=r["note"], code=r["code"],
                                signals={k2: (round(feats[i][k2], 2) if isinstance(feats[i][k2], float) else feats[i][k2]) for k2 in sig_keys if feats[i].get(k2)},
                                why=WHY.get(r["id"])))
-    res = dict(n=len(y), accuracy=k / len(y), accuracy_ci95=[lo, hi], correct=k,
+    tj = ROOT / "artifacts" / "threshold.json"
+    thr = json.loads(tj.read_text(encoding="utf-8"))["unknown_t"] if tj.exists() else 0.0
+    unk = [pred[i] == "OTHER_BUG" or float(P[i].max()) < thr for i in range(len(y))]
+    answered = [i for i in range(len(y)) if not unk[i]]
+    abstention = dict(unknown_t=thr, flagged_unknown=sum(unk), answered=len(answered),
+                      accuracy_when_answering=(sum(pred[i] == y[i] for i in answered) / len(answered)) if answered else None)
+
+    # separate set: real bugs that are none of the 8 misconceptions -> the right behaviour is "unknown"
+    orows = list(csv.DictReader(open(OTHER_CSV, encoding="utf-8", newline="")))
+    ofeats = [featurize(r["code"], problems[r["problem_id"]], run_submission(r["code"], problems[r["problem_id"]])) for r in orows]
+    OP = model.predict_proba(ofeats)
+    items = []
+    for i, r in enumerate(orows):
+        top, conf = LABELS[int(OP[i].argmax())], float(OP[i].max())
+        flagged = top == "OTHER_BUG" or conf < thr
+        items.append(dict(id=r["id"], problem=r["problem_id"], note=r["note"], predicted=top, confidence=round(conf, 3), unknown=flagged))
+    other = dict(n=len(orows), flagged_unknown=sum(it["unknown"] for it in items),
+                 confidently_mislabelled=sum(not it["unknown"] for it in items), items=items,
+                 description="10 hand-written wrong-formula snippets (OTHER_BUG); never used for training or tuning")
+
+    res = dict(n=len(y), accuracy=k / len(y), accuracy_ci95=[lo, hi], correct=k, abstention=abstention, other_bug=other,
                macro_f1=float(f1_score(y, pred, labels=present, average="macro", zero_division=0)),
                twin_pairs=twin, per_class=per_class, errors=errors, close_calls=close,
                model="trained on all 22 problems",
@@ -105,6 +129,14 @@ def render_md(r):
          f"| macro-F1 | **{r['macro_f1']:.3f}** |"]
     for k, t in r["twin_pairs"].items():
         L.append(f"| {k.replace('_', ' vs ')} twin-pair accuracy | **{t['exact']:.3f}** ({t['correct']}/{t['n']}; {t['swapped']:.2f} swapped with the twin) |")
+    a = r.get("abstention")
+    if a:
+        L += ["", f"Abstention (threshold {a['unknown_t']:.2f}): the app said **unknown** for {a['flagged_unknown']} of {r['n']} snippets; "
+                  f"accuracy on the {a['answered']} it answered: **{(a['accuracy_when_answering'] or 0):.3f}**."]
+    o = r.get("other_bug")
+    if o:
+        L += ["", f"**Unknown bugs** (`ml/data/realistic_other.csv`, {o['n']} hand-written wrong-formula snippets that are none of the 8 "
+                  f"misconceptions): flagged unknown {o['flagged_unknown']}/{o['n']}, confidently mislabelled {o['confidently_mislabelled']}/{o['n']}."]
     L += ["", "The template held-out score further down (1.000, held-out problems built from the same generator) is an **optimistic upper bound**, not the headline.", "",
           "With only 40 samples the intervals are wide; treat this as an honest sanity check on messier code, not a precise estimate.", ""]
     L += ["### Misclassifications", ""]

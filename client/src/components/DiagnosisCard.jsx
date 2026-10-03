@@ -29,18 +29,27 @@ export function TestResults({ tests }) {
 }
 
 export default function DiagnosisCard({ diag }) {
-  const ok = diag.label === 'CORRECT'
-  const tone = ok ? 'good' : diag.label ? 'bad' : 'warn'
+  const ok = diag.verdict ? diag.verdict === 'correct' : diag.label === 'CORRECT'
+  const unsure = diag.unknown && diag.label
+  const tone = ok ? 'good' : unsure ? 'warn' : diag.label ? 'bad' : 'warn'
   const top = diag.probabilities
     ? Object.entries(diag.probabilities).sort((a, b) => b[1] - a[1]).slice(0, 3)
     : []
   const passed = diag.test_results?.filter((t) => t.ok).length ?? 0
   return (
-    <Card title="Diagnosis" right={<Pill tone={tone}>{diag.label ? short(diag.label) : 'no diagnosis'}</Pill>}>
+    <Card title="Diagnosis" right={<Pill tone={tone}>{unsure ? 'Not sure' : diag.label ? short(diag.label) : 'no diagnosis'}</Pill>}>
       {!diag.label ? (
         <p className="text-sm text-warn">{diag.error || 'Your code could not be assessed.'}</p>
       ) : (
         <div className="space-y-5">
+          {unsure ? (
+            <div className="rounded-lg border border-warn/40 bg-warn/10 p-3" data-testid="unsure">
+              <p className="font-semibold text-warn">
+                Not sure{diag.closest_guess ? ` — closest guess: ${nice(diag.closest_guess.label)} (${Math.round(diag.closest_guess.probability * 100)}%)` : ''}
+              </p>
+              <p className="mt-1 text-sm text-ink/90">{diag.unknown_reason} So instead of a lesson that might not fit, here is exactly what went wrong.</p>
+            </div>
+          ) : (
           <div>
             <p className="text-lg font-semibold">{ok ? 'Looks correct' : nice(diag.label)}</p>
             <div className="mt-3">
@@ -57,6 +66,7 @@ export default function DiagnosisCard({ diag }) {
               </p>
             )}
           </div>
+          )}
           <div>
             <h3 className="mb-2 text-xs font-semibold uppercase tracking-wide text-muted">Evidence</h3>
             <ul className="space-y-1.5 text-sm">

@@ -8,6 +8,7 @@ from collections import Counter
 from .execute import run_submission
 from .features import featurize
 from .problems import load_problems
+from .mutants import other_bug_rows
 from .templates import TEMPLATES
 
 DATA = pathlib.Path(__file__).resolve().parents[1] / "data"
@@ -112,6 +113,11 @@ def build(seed=7, per_template=14):
                     f = featurize(code, prob, res)
                     rows.append(dict(problem=pid, label=label, code=code, **f))
                     made += 1
+    # OTHER_BUG: mutated correct programs that fail tests but look like none of M1..M8, balanced to a typical class size
+    sizes = sorted(Counter(r["label"] for r in rows if r["label"].startswith("M")).values())
+    other, ops = other_bug_rows(rng, problems, TEMPLATES, render, target=sizes[len(sizes) // 2])
+    rows += other
+    dropped[("*", "OTHER_BUG", "kept per mutation operator: " + ", ".join(f"{k}={v}" for k, v in sorted(ops.items())))] = len(other)
     return rows, dropped
 
 

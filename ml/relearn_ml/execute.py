@@ -1,5 +1,5 @@
 """Run learner code against a problem's tests (restricted builtins + step limit). Demo-grade sandbox."""
-import ast, builtins, contextlib, copy, io, math, sys
+import ast, builtins, contextlib, copy, io, math, sys, traceback
 
 SAFE = ["print","len","range","sum","min","max","abs","int","float","str","list","dict","set","tuple","sorted",
         "enumerate","zip","round","bool","reversed","any","all","map","filter","isinstance","divmod","pow","chr","ord",
@@ -72,6 +72,8 @@ def run_submission(code, problem):
         except MemoryError:
             return dict(MEMORY_LIMIT)
         except BaseException as e:
+            tb = [f.lineno for f in traceback.extract_tb(e.__traceback__) if f.filename == "<learner>"]
+            rec["line"] = tb[-1] if tb else None
             rec["exc"] = type(e).__name__; rec["msg"] = str(e)[:120]; rec["printed"] = bool(buf.getvalue().strip())
             rec["mutated"] = args != before; out.append(rec); continue
         rec["printed"] = bool(buf.getvalue().strip()); rec["stdout"] = buf.getvalue()[:200]

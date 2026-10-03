@@ -1,0 +1,45 @@
+id,problem_id,label,note,code
+O01,sum_to_n,OTHER_BUG,squares n instead of adding 1..n,"def sum_to_n(n):
+    return n * n
+"
+O02,average,OTHER_BUG,divides by one too many,"def average(nums):
+    total = 0
+    for x in nums:
+        total += x
+    return total / (len(nums) + 1)
+"
+O03,celsius_to_f,OTHER_BUG,fraction upside down,"def celsius_to_f(c):
+    return c * 5 / 9 + 32
+"
+O04,percentage,OTHER_BUG,part and whole swapped,"def percentage(part, whole):
+    return whole / part * 100
+"
+O05,square,OTHER_BUG,doubles instead of squaring,"def square(n):
+    result = n * 2
+    return result
+"
+O06,is_even,OTHER_BUG,tests for odd,"def is_even(n):
+    return n % 2 == 1
+"
+O07,count_evens,OTHER_BUG,counts the odd numbers,"def count_evens(nums):
+    count = 0
+    for x in nums:
+        if x % 2 == 1:
+            count += 1
+    return count
+"
+O08,product,OTHER_BUG,adds instead of multiplying,"def product(nums):
+    p = 1
+    for x in nums:
+        p = p + x
+    return p
+"
+O09,greet,OTHER_BUG,missing comma in the text,"def greet(name):
+    return 'Hello ' + name + '!'
+"
+O10,multiples,OTHER_BUG,makes n multiples instead of stopping at n,"def multiples(k, n):
+    out = []
+    for i in range(1, n + 1):
+        out.append(k * i)
+    return out
+"

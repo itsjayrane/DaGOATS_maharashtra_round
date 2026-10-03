@@ -9,7 +9,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import FileResponse
 from pydantic import BaseModel, Field
 
-from . import concept, db, hint, ratelimit, sandbox
+from . import concept, db, explain, hint, ratelimit, sandbox
 from .diagnoser import DiagnoserService
 from relearn_ml import fixer, references
 from .paths import CONTENT, DOCS, MODEL_PATH
@@ -100,15 +100,19 @@ def diagnose(body: DiagnoseIn, request: Request):
     passed = res["status"] == "ok" and all(t["ok"] for t in res["tests"])
     out = dict(label=d["label"], confidence=d["confidence"], evidence=d["evidence"], test_results=clean_tests(res),
                passed=passed, status=res["status"], error=res.get("error") or d.get("error"), probabilities=d["probabilities"],
-               ambiguous=d["ambiguous"], runner_up=d["runner_up"])
+               ambiguous=d["ambiguous"], runner_up=d["runner_up"], verdict=d["verdict"], unknown=d["unknown"],
+               unknown_reason=d["unknown_reason"], closest_guess=d["closest_guess"])
     if body.learner_id:
         lab = d["label"]
         upd = None
-        if lab and lab != "CORRECT":
+        if d["verdict"] == "misconception":  # unknown never changes mastery
             c = d["confidence"]
             upd = lambda v, r: (v * (1 - 0.5 * c), False)  # evidence of the misconception lowers mastery
+        fail_sig = dict(failing=[i for i, t in enumerate(res["tests"]) if not t["ok"]], exc=sorted({t["exc"] for t in res["tests"] if t.get("exc")}),
+                        status=res["status"])
         out["mastery_after"] = db.record(body.learner_id, "diagnose", p["id"], lab, d["confidence"], passed, body.code,
-                                         dict(evidence=d["evidence"]), misconception=lab if upd else None, update=upd)
+                                         dict(evidence=d["evidence"], verdict=d["verdict"], fail_sig=fail_sig),
+                                         misconception=lab if upd else None, update=upd)
     return out
 
 
@@ -122,6 +126,15 @@ class IntervenIn(BaseModel):
 @app.post("/intervene")
 def intervene(body: IntervenIn, request: Request):
     ratelimit.check(request, "intervene", body.learner_id)
+    if body.problem_id and body.code is not None and SVC is not None:
+        p = get_problem(body.problem_id)
+        res = sandbox.run(body.code, p)
+        d = SVC.diagnose(body.code, p, res)
+        if res["status"] == "ok" and d["unknown"]:  # never a canned lesson for an unknown bug: explain what happened instead
+            guess = (d.get("closest_guess") or {}).get("label")
+            return dict(label=d["label"], unknown=True, unknown_reason=d["unknown_reason"], closest_guess=d["closest_guess"],
+                        intervention=None, personalized=None,
+                        explain=explain.explain(p, body.code, sandbox.run, [guess] if guess else None, references.reference_variants()[p["id"]][0]))
     if body.label.upper() == "CORRECT":
         return dict(label="CORRECT", intervention=None, message="No misconception detected - nothing to remediate.")
     m = full_label(body.label)
@@ -229,6 +242,8 @@ def metrics():
     out = json.loads(f.read_text(encoding="utf-8"))
     r = DOCS / "realistic.json"  # hand-written realistic set: the headline number
     out["realistic"] = json.loads(r.read_text(encoding="utf-8")) if r.exists() else None
+    u = DOCS / "unseen_eval.json"  # leave-one-misconception-out (ml/eval_unseen.py)
+    out["unseen"] = json.loads(u.read_text(encoding="utf-8")) if u.exists() else None
     return out
 
 
@@ -280,3 +295,20 @@ def learner_hints(learner_id: str):
 def hint_status():
     """Hint configuration: curated and offline (llm: "none")."""
     return hint.status()
+
+
+class ExplainIn(BaseModel):
+    problem_id: str
+    code: str = Field(max_length=MAX_CODE_CHARS)
+
+
+@app.post("/explain")
+def explain_endpoint(body: ExplainIn, request: Request):
+    """Deterministic explanation: where it went wrong, a fix of THEIR code (only if it passes every test), the best solution."""
+    ratelimit.check(request, "diagnose")
+    p = get_problem(body.problem_id)
+    order = None
+    if SVC is not None:
+        d = SVC.diagnose(body.code, p, sandbox.run(body.code, p))
+        order = [x for x in (d.get("label"), (d.get("closest_guess") or {}).get("label")) if x]
+    return explain.explain(p, body.code, sandbox.run, order, references.reference_variants()[p["id"]][0])
