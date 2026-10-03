@@ -19,6 +19,7 @@ export default function Home() {
   const [busy, setBusy] = useState(false)
   const [error, setError] = useState('')
   const [proving, setProving] = useState(false)
+  const [submitted, setSubmitted] = useState(null) // the exact problem + code that was diagnosed (the editor may change afterwards)
   const [demo, setDemo] = useState(null)
   const diagRef = useRef(null)
   const proveRef = useRef(null)
@@ -42,6 +43,7 @@ export default function Home() {
     setBusy(true); setError(''); setProving(false)
     try {
       const d = await api.diagnose({ problem_id: pid, code, learner_id: lid })
+      setSubmitted({ pid, code, n: Date.now() })
       setDiag(d)
       setTimeout(() => diagRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' }), 50)
     } catch (e) { setError(e.message) } finally { setBusy(false) }
@@ -101,13 +103,13 @@ export default function Home() {
           {diag.label === 'CORRECT' && (
             <Card><p className="text-sm text-good">Nice - no misconception detected.{showDemo && ' Try a demo bug above to see the diagnosis → intervention → proof loop.'}</p></Card>
           )}
-          {misconception && <InterventionPanel key={`${misconception}:${pid}`} label={misconception} onProve={prove} />}
+          {misconception && <InterventionPanel key={`${misconception}:${submitted?.n}`} label={misconception} problemId={submitted?.pid ?? pid} code={submitted?.code ?? code} onProve={prove} />}
         </div>
       )}
 
       {misconception && proving && (
         <div ref={proveRef} className="scroll-mt-20">
-          <TransferPanel key={`${misconception}:${pid}`} label={misconception} learnerId={lid} originalProblemId={pid} />
+          <TransferPanel key={`${misconception}:${submitted?.n}`} label={misconception} learnerId={lid} originalProblemId={submitted?.pid ?? pid} />
         </div>
       )}
       {!problems.length && !error && <Pill>Loading problems…</Pill>}

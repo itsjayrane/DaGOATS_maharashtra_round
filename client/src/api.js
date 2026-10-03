@@ -27,7 +27,7 @@ async function req(path, opts = {}) {
 export const api = {
   problems: () => req('/problems'),
   diagnose: (body) => req('/diagnose', { method: 'POST', body }),
-  intervene: (label) => req('/intervene', { method: 'POST', body: { label } }),
+  intervene: (label, extra = {}) => req('/intervene', { method: 'POST', body: { label, ...extra } }),
   transfer: (m, learnerId, exclude) =>
     req(`/transfer/${m}?learner_id=${encodeURIComponent(learnerId)}${exclude ? `&exclude=${exclude}` : ''}`),
   reassess: (body) => req('/reassess', { method: 'POST', body }),

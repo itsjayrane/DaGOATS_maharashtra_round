@@ -1,20 +1,57 @@
 import { useEffect, useState } from 'react'
 import { api } from '../api'
-import { Button, Card, CodeBlock, ErrorNote, Pill, RichText } from './ui'
+import { Button, Card, CodeBlock, CodeView, ErrorNote, Pill, RichText } from './ui'
 
-export default function InterventionPanel({ label, onProve }) {
+function Contrast({ p, generic }) {
+  // p = personalised payload for THIS learner's code; falls back to the generic example only if it could not be built
+  if (!p) {
+    return (
+      <div className="grid gap-3 md:grid-cols-2">
+        <CodeBlock code={generic.wrong_code} tone="bad" label="✗ What goes wrong (generic example)" />
+        <CodeBlock code={generic.right_code} tone="good" label="✓ What works" />
+      </div>
+    )
+  }
+  const auto = p.source === 'auto_fix'
+  const ok = p.verified.passed === p.verified.total
+  const badge = (
+    <span className={`text-xs font-medium ${ok ? 'text-good' : 'text-warn'}`}>
+      {ok ? '✓' : '!'} passes {p.verified.passed}/{p.verified.total} tests
+    </span>
+  )
+  return (
+    <div>
+      <div className="grid gap-3 md:grid-cols-2">
+        <CodeView code={p.your_code} highlight={p.highlight_lines} tone="bad" label="✗ What you did"
+          caption={p.highlight_lines.length ? 'Your submitted code. Highlighted: the line(s) that cause it.' : 'Your submitted code.'} />
+        <CodeView code={p.fixed_code} highlight={p.fixed_highlight_lines} tone="good"
+          label={auto ? '✓ What works - your code, minimally fixed' : '✓ What works - a correct solution'} badge={badge}
+          caption={auto ? 'Only the misconception was changed; highlighted lines differ from yours.' : 'We could not safely fix your code with a small edit, so this is a correct solution to the same problem.'} />
+      </div>
+      <p className="mt-3 text-sm text-ink/90" data-testid="fix-rule">
+        <span className="font-semibold text-accent">{auto ? 'The fix: ' : 'Why a different solution: '}</span>
+        <span>{auto ? p.rule : p.rule}</span>
+      </p>
+      {p.identical && <p className="mt-1 text-xs text-warn">Your code already matches the only correct solution we have for this problem.</p>}
+    </div>
+  )
+}
+
+export default function InterventionPanel({ label, problemId, code, onProve }) {
   const [data, setData] = useState(null)
   const [error, setError] = useState('')
   const [picked, setPicked] = useState(null)
 
   useEffect(() => {
     let live = true
-    api.intervene(label).then((d) => live && setData(d)).catch((e) => live && setError(e.message))
+    api.intervene(label, { problem_id: problemId, code })
+      .then((d) => live && setData(d))
+      .catch((e) => live && setError(e.message))
     return () => { live = false }
-  }, [label])
+  }, [label, problemId, code])
 
   if (error) return <Card title="Targeted intervention"><ErrorNote error={error} /></Card>
-  if (!data?.intervention) return <Card title="Targeted intervention"><p className="text-sm text-muted">Loading…</p></Card>
+  if (!data?.intervention) return <Card title="Targeted intervention"><p className="text-sm text-muted">Building a fix for your code…</p></Card>
   const iv = data.intervention
   const q = iv.predict
   const answered = picked !== null
@@ -25,14 +62,16 @@ export default function InterventionPanel({ label, onProve }) {
       <h3 className="text-lg font-semibold">{iv.title}</h3>
       <RichText text={iv.explanation} className="mt-2 text-sm text-ink/90" />
 
-      <div className="mt-5 grid gap-3 md:grid-cols-2">
-        <CodeBlock code={iv.wrong_code} tone="bad" label="✗ What you did" />
-        <CodeBlock code={iv.right_code} tone="good" label="✓ What works" />
-      </div>
+      <div className="mt-5"><Contrast p={data.personalized} generic={iv} /></div>
 
-      <div className="mt-5">
-        <h4 className="mb-2 text-xs font-semibold uppercase tracking-wide text-muted">Trace it</h4>
-        <ol className="space-y-1 rounded-lg border border-line bg-[#0d1320] p-3 font-mono text-[13px]">
+      <div className="mt-6 rounded-lg border border-line bg-raised/60 p-4">
+        <h4 className="mb-1 text-xs font-semibold uppercase tracking-wide text-muted">Concept example</h4>
+        <p className="mb-3 text-xs text-muted">The same idea in a tiny, general example - not your code.</p>
+        <div className="grid gap-3 md:grid-cols-2">
+          <CodeBlock code={iv.wrong_code} tone="bad" label="✗ misconception" />
+          <CodeBlock code={iv.right_code} tone="good" label="✓ idea" />
+        </div>
+        <ol className="mt-3 space-y-1 rounded-lg border border-line bg-[#0d1320] p-3 font-mono text-[12px]">
           {iv.trace.map((s, i) => <li key={i} className="text-ink/90"><span className="mr-2 text-muted">{i + 1}.</span>{s}</li>)}
         </ol>
       </div>

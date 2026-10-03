@@ -11,6 +11,7 @@ from pydantic import BaseModel
 
 from . import db, sandbox
 from .diagnoser import DiagnoserService
+from relearn_ml import fixer, references
 from .paths import CONTENT, DOCS, MODEL_PATH
 
 PROBLEMS = {p["id"]: p for p in json.loads((CONTENT / "problems.json").read_text(encoding="utf-8"))}
@@ -110,6 +111,8 @@ def diagnose(body: DiagnoseIn):
 
 class IntervenIn(BaseModel):
     label: str
+    problem_id: Optional[str] = None  # with `code`, the response includes `personalized`: the learner's own code + a verified minimal fix
+    code: Optional[str] = None
 
 
 @app.post("/intervene")
@@ -118,7 +121,12 @@ def intervene(body: IntervenIn):
         return dict(label="CORRECT", intervention=None, message="No misconception detected - nothing to remediate.")
     m = full_label(body.label)
     c = MISC[m]
-    return dict(label=m, name=c["name"], summary=c["summary"], intervention=c["intervention"])
+    out = dict(label=m, name=c["name"], summary=c["summary"], intervention=c["intervention"], personalized=None)
+    if body.problem_id and body.code is not None:
+        p = get_problem(body.problem_id)
+        # minimal fix of THEIR code, verified in the sandbox against the problem's tests; falls back to the reference solution
+        out["personalized"] = fixer.personalize(body.code, p, m, sandbox.run, references.reference_variants()[p["id"]])
+    return out
 
 
 @app.get("/transfer/{misconception}")

@@ -78,3 +78,31 @@ export function ErrorNote({ error }) {
   if (!error) return null
   return <div role="alert" className="rounded-lg border border-bad/40 bg-bad/10 p-3 text-sm text-bad">{error}</div>
 }
+
+// Line-numbered code with highlighted lines (1-based `highlight`), used for the learner's code and the fix.
+export function CodeView({ code, highlight = [], tone = 'bad', label, caption, badge }) {
+  const lines = String(code).replace(/\n$/, '').split('\n')
+  const hl = new Set(highlight)
+  const ring = tone === 'bad' ? 'border-bad/40' : 'border-good/40'
+  const head = tone === 'bad' ? 'text-bad' : 'text-good'
+  const mark = tone === 'bad' ? 'bg-bad/20 border-bad' : 'bg-good/20 border-good'
+  return (
+    <div className={`min-w-0 overflow-hidden rounded-lg border ${ring} bg-[#0d1320]`}>
+      <div className={`flex flex-wrap items-center justify-between gap-2 border-b ${ring} px-3 py-1.5`}>
+        <span className={`text-xs font-semibold ${head}`}>{label}</span>
+        {badge}
+      </div>
+      {caption && <div className="border-b border-line px-3 py-1.5 text-xs text-muted">{caption}</div>}
+      <div className="overflow-x-auto py-2 font-mono text-[13px] leading-relaxed text-ink" role="region" aria-label={label}>
+        <div className="min-w-max">
+          {lines.map((l, i) => (
+            <div key={i} className={`flex border-l-2 pr-3 ${hl.has(i + 1) ? mark : 'border-transparent'}`} data-hl={hl.has(i + 1) ? 'true' : undefined}>
+              <span className="w-8 shrink-0 select-none pr-3 text-right text-muted/70">{i + 1}</span>
+              <span className="whitespace-pre">{l || ' '}</span>
+            </div>
+          ))}
+        </div>
+      </div>
+    </div>
+  )
+}
