@@ -1,16 +1,71 @@
-import { useEffect, useState } from 'react'
+import { useEffect, useId, useState } from 'react'
 import { Link } from 'react-router-dom'
 import { api, learnerId } from '../api'
 import { Bar, Card, ErrorNote, Pill } from '../components/ui'
 import { MISC, short } from '../labels'
 
-const tone = (m) => (m >= 0.7 ? 'good' : m >= 0.4 ? 'warn' : 'bad')
+const HINT = "Drops when we spot this mistake in your code. Rises when you prove you've fixed it on a new problem."
+const TOP_N = 2
+
+const pct = (m) => Math.round(m * 100)
+// red < 40%, yellow 40-70%, green > 70% (judged on the number shown, so "70%" is never green)
+const tone = (m) => (pct(m) > 70 ? 'good' : pct(m) >= 40 ? 'warn' : 'bad')
+
+// One row per misconception, with how much evidence we have for it.
+function summarise(data) {
+  return MISC.map(([full, id, name]) => {
+    const rows = data.history.filter((h) => h.misconception === full)
+    const m = data.mastery[full] || { mastery: 0.5, resolved: false }
+    const detected = rows.filter((h) => h.kind === 'diagnose') // "detected" = a submission diagnosed as this
+    const last = Math.max(0, ...(detected.length ? detected : rows).map((h) => h.ts))
+    return { full, id, name, attempts: rows.length, mastery: m.mastery, resolved: m.resolved, last }
+  })
+}
+
+function InfoTip({ text }) {
+  const tipId = useId()
+  return (
+    <span className="group relative ml-2 inline-flex align-middle">
+      <button type="button" aria-label="What does mastery mean?" aria-describedby={tipId}
+        className="flex h-4 w-4 items-center justify-center rounded-full border border-muted text-[10px] font-semibold normal-case text-muted hover:text-ink focus:text-ink">i</button>
+      <span id={tipId} role="tooltip"
+        className="pointer-events-none absolute left-0 top-6 z-20 hidden w-64 rounded-lg border border-line bg-raised p-3 text-xs font-normal normal-case leading-relaxed tracking-normal text-ink shadow-lg group-focus-within:block group-hover:block">
+        {text}
+      </span>
+    </span>
+  )
+}
+
+function EmptyProgress() {
+  return (
+    <p className="text-sm text-muted" data-testid="mastery-empty">
+      Submit a solution on the <Link to="/" className="text-accent hover:underline">Practice page</Link> to see your progress.
+    </p>
+  )
+}
+
+function MasteryRow({ r }) {
+  if (r.attempts === 0) {
+    return (
+      <div className="flex items-center justify-between gap-3 text-xs" data-testid="mastery-row" data-seen="false">
+        <span className="text-ink">{r.id} · {r.name}</span>
+        <span className="rounded-full border border-line bg-raised px-2 py-0.5 text-muted">Not seen yet</span>
+      </div>
+    )
+  }
+  return (
+    <div data-testid="mastery-row" data-seen="true">
+      <Bar value={r.mastery} tone={tone(r.mastery)} label={<span>{r.id} · {r.name} {r.resolved && <Pill tone="good">resolved</Pill>}</span>} right={`${pct(r.mastery)}%`} />
+    </div>
+  )
+}
 
 export default function Dashboard() {
   const lid = learnerId()
   const [data, setData] = useState(null)
   const [empty, setEmpty] = useState(false)
   const [error, setError] = useState('')
+  const [expanded, setExpanded] = useState(false)
 
   useEffect(() => {
     api.learner(lid).then(setData).catch((e) => (e.status === 404 ? setEmpty(true) : setError(e.message)))
@@ -20,26 +75,30 @@ export default function Dashboard() {
   if (empty) {
     return (
       <Card title="Dashboard">
-        <p className="text-sm text-muted">No attempts yet for <code className="font-mono">{lid}</code>. <Link to="/" className="text-accent hover:underline">Submit a solution</Link> to start.</p>
+        <EmptyProgress />
       </Card>
     )
   }
   if (!data) return <p className="text-sm text-muted">Loading…</p>
 
+  const items = summarise(data)
+  // with evidence: lowest mastery first, most recently detected breaks ties; the rest keep M1..M8 order
+  const seen = items.filter((i) => i.attempts > 0).sort((a, b) => a.mastery - b.mastery || b.last - a.last)
+  const unseen = items.filter((i) => i.attempts === 0)
+  const visible = expanded ? [...seen, ...unseen] : seen.slice(0, TOP_N)
+
   return (
     <div className="space-y-6">
-      <Card title="Mastery by misconception" right={<span className="font-mono text-xs text-muted">{lid}</span>}>
-        <p className="mb-4 text-xs text-muted">50% = unknown. Evidence of a misconception lowers it; a verified transfer success raises it.</p>
-        <div className="grid gap-x-8 gap-y-4 md:grid-cols-2">
-          {MISC.map(([full, id, name]) => {
-            const m = data.mastery[full] || { mastery: 0.5, resolved: false }
-            return (
-              <div key={full}>
-                <Bar value={m.mastery} tone={tone(m.mastery)} label={<span>{id} · {name} {m.resolved && <Pill tone="good">resolved</Pill>}</span>} right={`${Math.round(m.mastery * 100)}%`} />
-              </div>
-            )
-          })}
-        </div>
+      <Card title={<>Mastery by misconception<InfoTip text={HINT} /></>} right={<span className="font-mono text-xs text-muted">{lid}</span>}>
+        {visible.length === 0 ? <EmptyProgress /> : (
+          <div className="grid gap-x-8 gap-y-4 md:grid-cols-2">
+            {visible.map((r) => <MasteryRow key={r.full} r={r} />)}
+          </div>
+        )}
+        <button type="button" aria-expanded={expanded} onClick={() => setExpanded((v) => !v)}
+          className="mt-4 text-xs text-accent hover:underline">
+          {expanded ? 'Show fewer' : `Show all (${MISC.length})`}
+        </button>
       </Card>
 
       <Card title={`Attempt history · ${data.history.length}`}>
