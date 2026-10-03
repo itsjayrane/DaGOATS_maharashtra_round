@@ -37,7 +37,7 @@ function Contrast({ p, generic }) {
   )
 }
 
-export default function InterventionPanel({ label, problemId, code, learnerId, onProve }) {
+export default function InterventionPanel({ label, problemId, code, learnerId, onProve, explained = false }) {
   const [data, setData] = useState(null)
   const [error, setError] = useState('')
   const [picked, setPicked] = useState(null)
@@ -62,7 +62,7 @@ export default function InterventionPanel({ label, problemId, code, learnerId, o
       <h3 className="text-lg font-semibold">{iv.title}</h3>
       <RichText text={iv.explanation} className="mt-2 text-sm text-ink/90" />
 
-      <div className="mt-5"><Contrast p={data.personalized} generic={iv} /></div>
+      {!explained && <div className="mt-5"><Contrast p={data.personalized} generic={iv} /></div>}
 
       <div className="mt-6 rounded-lg border border-line bg-raised/60 p-4">
         <h4 className="mb-1 text-xs font-semibold uppercase tracking-wide text-muted">Concept example</h4>

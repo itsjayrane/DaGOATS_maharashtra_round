@@ -310,6 +310,7 @@ def hint_status():
 class ExplainIn(BaseModel):
     problem_id: str
     code: str = Field(max_length=MAX_CODE_CHARS)
+    label: Optional[str] = None  # the misconception already diagnosed (optional; otherwise /explain diagnoses itself)
 
 
 @app.post("/explain")
@@ -317,11 +318,17 @@ def explain_endpoint(body: ExplainIn, request: Request):
     """Deterministic explanation: where it went wrong, a fix of THEIR code (only if it passes every test), the best solution."""
     ratelimit.check(request, "diagnose")
     p = get_problem(body.problem_id)
-    order = None
-    if SVC is not None:
+    order, named = None, None
+    if body.label and body.label.upper() not in ("CORRECT", "OTHER_BUG"):
+        named = full_label(body.label)
+        order = [named]
+    elif SVC is not None:
         d = SVC.diagnose(body.code, p, sandbox.run(body.code, p), strict=bool(p.get("custom")))
         order = [x for x in (d.get("label"), (d.get("closest_guess") or {}).get("label")) if x]
-    return explain.explain(p, body.code, sandbox.run, order, refs_for(p)[0])
+        named = d["label"] if d.get("verdict") == "misconception" else None
+    out = explain.explain(p, body.code, sandbox.run, order, refs_for(p)[0])
+    out["why"] = None if out["all_tests_pass"] else explain.why(named, p, {k: v["name"] for k, v in MISC.items()})
+    return out
 
 
 class CustomTest(BaseModel):

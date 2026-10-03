@@ -144,8 +144,8 @@ export default function Home() {
           {diag.label === 'CORRECT' && (
             <Card><p className="text-sm text-good">Nice - no misconception detected.{showDemo && ' Try a demo bug above to see the diagnosis → intervention → proof loop.'}</p></Card>
           )}
-          {unknownBug && <ExplainPanel key={`explain:${submitted?.n}`} problemId={submitted?.pid ?? pid} code={submitted?.code ?? code} />}
-          {misconception && <InterventionPanel key={`${misconception}:${submitted?.n}`} label={misconception} problemId={submitted?.pid ?? pid} code={submitted?.code ?? code} learnerId={lid} onProve={prove} />}
+          {(unknownBug || misconception) && <ExplainPanel key={`explain:${submitted?.n}`} label={misconception} problemId={submitted?.pid ?? pid} code={submitted?.code ?? code} />}
+          {misconception && <InterventionPanel key={`${misconception}:${submitted?.n}`} explained label={misconception} problemId={submitted?.pid ?? pid} code={submitted?.code ?? code} learnerId={lid} onProve={prove} />}
         </div>
       )}
 

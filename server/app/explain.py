@@ -33,6 +33,17 @@ STATUS_WORDS = {
     "crash": "your code stopped unexpectedly",
 }
 TOTAL_FIX_BUDGET_S = 4.0
+WHY = {  # one template per misconception, at most 2 sentences, 12th-grade wording
+    "M1_RANGE_OFF_BY_ONE": "range(a, b) stops just before b, so your loop never reaches the last number. To include b, write range(a, b + 1).",
+    "M2_INDEX_FROM_ONE": "Python counts positions from 0, so the first item is x[0] and the last is x[len(x) - 1]. Using len(x), or starting at 1, goes one step too far.",
+    "M3_PRINT_NOT_RETURN": "print only shows a value on the screen; it does not give it back, so {fn} returns None. Use return to hand the answer back.",
+    "M4_ACCUMULATOR_RESET": "Your running total is set back to its starting value inside the loop, so it forgets everything except the last item. Set it once, before the loop.",
+    "M5_RETURN_IN_LOOP": "return ends the whole function at once, so your loop stops after the first item. Put the return after the loop has finished.",
+    "M6_FLOAT_DIVISION": "// throws away everything after the decimal point (7 // 2 is 3, not 3.5). Use / when you need the exact answer.",
+    "M7_STRING_MUTABLE": "A string can never be changed in place, so s.upper() makes a NEW string and s[i] = 'x' is not allowed. Keep the new string by writing s = s.upper().",
+    "M8_LIST_ALIASING": "b = a does not copy a list - both names point to the SAME list, so changing one changes the other. Make a real copy with a[:] or list(a).",
+}
+WHY_UNKNOWN = "This does not look like one of the 8 common mistakes we know, so the best guide is the failing check above: compare what your code gave with what it should give."
 
 
 def plain_exception(name):
@@ -61,6 +72,13 @@ def where_it_went_wrong(problem, res):
         words = f"For {call}, your function gave back {fmt(t['got'])}, but it should give back {fmt(t['expected'])}."
     return dict(kind="test", test_index=i, call=call, expected=fmt(t["expected"]), got=None if t.get("exc") else fmt(t["got"]),
                 error=t.get("exc"), technical=t.get("msg"), words=words, failing_tests=len(bad), total_tests=len(res["tests"]))
+
+
+def why(label, problem, names=None):
+    """Section 2 of the explanation card. `label` None -> the bug is unknown."""
+    if label in WHY:
+        return dict(label=label, name=(names or {}).get(label), text=WHY[label].format(fn=problem["fn"]))
+    return dict(label=None, name=None, text=WHY_UNKNOWN)
 
 
 def explain(problem, code, run, label_order=None, reference=None):
