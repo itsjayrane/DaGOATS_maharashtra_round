@@ -349,7 +349,7 @@ render.yaml  backend deployment blueprint        run.ps1  one-command local star
 
 ## Deployment
 
-Backend on **Render** (`render.yaml`; the model is trained during the build), frontend on **Vercel**. Step-by-step in [`docs/deploy.md`](docs/deploy.md).
+Backend on **Render** (`render.yaml`; the build only installs the pinned dependencies - the trained model `ml/artifacts/diagnoser.joblib` and `threshold.json` are committed, and the server refuses to start with a clear message if a required file is missing), frontend on **Vercel**. Step-by-step in [`docs/deploy.md`](docs/deploy.md).
 
 ## Limitations (read this)
 

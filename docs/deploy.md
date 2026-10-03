@@ -2,9 +2,13 @@
 
 **Backend -> Render** (`render.yaml` at the repo root, "New > Blueprint").
 
-- Build: `pip install -r server/requirements.txt && python ml/train.py`. The serving model is **trained during the build** from the
-  committed `ml/data/dataset.jsonl`, with pinned library versions, so the pickle always matches the installed scikit-learn/LightGBM.
-  (`ml/artifacts/*.joblib` stays gitignored; `ml/artifacts/threshold.json` is committed and rewritten by the build.) Training takes 1-2 minutes.
+- Build: `pip install -r server/requirements.txt && cd server && python -m app.artifacts`. **No training in the build**: the serving
+  model `ml/artifacts/diagnoser.joblib` (3 MB, with its calibration temperature) and `ml/artifacts/threshold.json` are **committed**.
+  They were trained with exactly the pinned `ml/requirements.txt` versions, which are recorded inside the model file.
+  `python -m app.artifacts` checks that every required file exists and that the model loads. A failed check fails the build,
+  so the previous deploy stays live.
+- Startup runs the same check and **refuses to start**, listing every missing file and the fix, rather than serving without a model.
+- To change the model: `cd ml && python -m relearn_ml.generate && python train.py` (deterministic), then commit `ml/artifacts/` and `docs/`.
   The heavier leave-one-misconception-out evaluation (`ml/eval_unseen.py`) is **not** part of the build; its output `docs/unseen_eval.json` is committed.
 - Start: `cd server && uvicorn app.main:app --host 0.0.0.0 --port $PORT`. Health check: `/health`.
 - `content/*.json` and `docs/*.json` are read from the repo checkout, so they ship with the service.

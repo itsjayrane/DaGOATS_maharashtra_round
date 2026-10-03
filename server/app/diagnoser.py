@@ -2,10 +2,10 @@
 import ast
 import json
 
-import joblib
 import numpy as np
 
-from .paths import ML_DIR, MODEL_PATH
+from .artifacts import THRESHOLD_PATH, load_model
+from .paths import MODEL_PATH
 from relearn_ml.features import featurize  # noqa: E402  (ml/ is put on sys.path by paths.py)
 from relearn_ml.labels import LABELS, TWIN_OF  # noqa: E402
 
@@ -75,12 +75,12 @@ def is_no_attempt(code, fn_name):
 
 class DiagnoserService:
     def __init__(self):
-        art = joblib.load(MODEL_PATH)
+        art = load_model(MODEL_PATH)
         self.model = art["model"]
         self.config = art.get("config")
         self.names = self.model.feature_names()
-        tj = ML_DIR / "artifacts" / "threshold.json"  # UNKNOWN_T, tuned on out-of-fold data by ml/train.py
-        self.unknown_t = json.loads(tj.read_text(encoding="utf-8"))["unknown_t"] if tj.exists() else 0.0
+        # UNKNOWN_T, tuned on out-of-fold data by ml/train.py; required (checked at startup), never silently 0
+        self.unknown_t = json.loads(THRESHOLD_PATH.read_text(encoding="utf-8"))["unknown_t"]
 
     def _contrib(self, feats, k, top=4):
         X = self.model._X([feats])

@@ -195,7 +195,11 @@ def main():
     # --- save models ---
     joblib.dump(dict(model=model, labels=LABELS, holdout=HOLDOUT, config=best), ART / "diagnoser_holdout.joblib")
     final = fit(rows, CONFIGS[best]); final.T = T
-    joblib.dump(dict(model=final, labels=LABELS, config=best, temperature=T), ART / "diagnoser.joblib")
+    import importlib.metadata as md, platform
+    versions = {lib: md.version(lib) for lib in ("scikit-learn", "lightgbm", "numpy", "scipy", "joblib")}
+    versions["python"] = platform.python_version()
+    # committed: the server loads this file at startup (the Render build does not retrain)
+    joblib.dump(dict(model=final, labels=LABELS, config=best, temperature=T, versions=versions), ART / "diagnoser.joblib")
     print("saved models + docs/metrics.md + docs/confusion_matrix.png")
     import realistic_eval; realistic_eval.run()  # headline: hand-written realistic set (also refreshes docs/realistic.json)
 

@@ -22,7 +22,7 @@ env/
 **/.env.*
 !**/.env.example
 
-# model weights / large artifacts are never committed (the serving model is trained in the Render build)
+# model weights / large artifacts are not committed - EXCEPT the serving model, which the server loads at startup
 *.joblib
 *.pkl
 *.pickle
@@ -33,3 +33,4 @@ env/
 *.onnx
 *.h5
 *.npy
+!ml/artifacts/diagnoser.joblib

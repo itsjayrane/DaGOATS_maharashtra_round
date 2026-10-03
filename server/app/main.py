@@ -9,10 +9,14 @@ from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import FileResponse, Response
 from pydantic import BaseModel, Field
 
+from . import artifacts
+
+artifacts.check()  # before anything reads content/ or ml/artifacts: one clear error listing every missing file
+
 from . import bkt, concept, custom, db, explain, hint, insights, ratelimit, sandbox
 from .diagnoser import DiagnoserService
 from relearn_ml import fixer, references
-from .paths import CONTENT, DOCS, MODEL_PATH
+from .paths import CONTENT, DOCS
 
 PROBLEMS = {p["id"]: p for p in json.loads((CONTENT / "problems.json").read_text(encoding="utf-8"))}
 MISC = json.loads((CONTENT / "misconceptions.json").read_text(encoding="utf-8"))
@@ -28,9 +32,9 @@ CLEAR_THRESHOLD = 0.25  # model must give the target misconception < 25% probabi
 async def lifespan(app):
     global SVC
     db.init()
-    hint.log_startup()  # says right at startup whether AI hints are enabled (and where the key was found)
-    if MODEL_PATH.exists():
-        SVC = DiagnoserService()
+    hint.log_startup()
+    SVC = DiagnoserService()  # raises artifacts.MissingArtifact with the fix if the committed model cannot be loaded
+    artifacts.log.warning("startup ok: model, threshold and content loaded (no API keys or external services needed)")
     yield
 
 

@@ -4,9 +4,10 @@ services:
     name: relearn-api
     runtime: python
     plan: free
-    # Build = install pinned deps, then TRAIN the serving model on this machine (ml/data/dataset.jsonl is committed).
-    # Training here (instead of committing a .joblib) guarantees the pickle matches the installed scikit-learn/LightGBM.
-    buildCommand: pip install --upgrade pip && pip install -r server/requirements.txt && python ml/train.py
+    # Build = install the pinned deps only. The serving model (ml/artifacts/diagnoser.joblib + threshold.json) is committed,
+    # trained with exactly these pins; the server checks every required file at startup and refuses to start, with a clear
+    # message, if one is missing. `python -m app.artifacts` (from server/) runs the same check.
+    buildCommand: pip install --upgrade pip && pip install -r server/requirements.txt && cd server && python -m app.artifacts
     startCommand: cd server && uvicorn app.main:app --host 0.0.0.0 --port $PORT
     healthCheckPath: /health
     autoDeploy: true
