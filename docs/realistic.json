@@ -1,0 +1,148 @@
+{
+ "n": 40,
+ "accuracy": 0.95,
+ "accuracy_ci95": [
+  0.834958291820748,
+  0.9861796228538989
+ ],
+ "correct": 38,
+ "macro_f1": 0.946031746031746,
+ "twin_pairs": {
+  "M1_M2": {
+   "n": 8,
+   "exact": 0.875,
+   "correct": 7,
+   "swapped": 0.125,
+   "ci95": [
+    0.5291051942301386,
+    0.9775830911367038
+   ]
+  },
+  "M4_M5": {
+   "n": 8,
+   "exact": 0.875,
+   "correct": 7,
+   "swapped": 0.0,
+   "ci95": [
+    0.5291051942301386,
+    0.9775830911367038
+   ]
+  }
+ },
+ "per_class": {
+  "CORRECT": {
+   "support": 9,
+   "recall": 1.0,
+   "f1": 1.0
+  },
+  "M1_RANGE_OFF_BY_ONE": {
+   "support": 4,
+   "recall": 1.0,
+   "f1": 0.8
+  },
+  "M2_INDEX_FROM_ONE": {
+   "support": 4,
+   "recall": 0.75,
+   "f1": 0.8571428571428571
+  },
+  "M3_PRINT_NOT_RETURN": {
+   "support": 4,
+   "recall": 1.0,
+   "f1": 1.0
+  },
+  "M4_ACCUMULATOR_RESET": {
+   "support": 4,
+   "recall": 1.0,
+   "f1": 1.0
+  },
+  "M5_RETURN_IN_LOOP": {
+   "support": 4,
+   "recall": 0.75,
+   "f1": 0.8571428571428571
+  },
+  "M6_FLOAT_DIVISION": {
+   "support": 4,
+   "recall": 1.0,
+   "f1": 1.0
+  },
+  "M7_STRING_MUTABLE": {
+   "support": 3,
+   "recall": 1.0,
+   "f1": 1.0
+  },
+  "M8_LIST_ALIASING": {
+   "support": 4,
+   "recall": 1.0,
+   "f1": 1.0
+  }
+ },
+ "errors": [
+  {
+   "runner_up": "M2_INDEX_FROM_ONE",
+   "id": "R16",
+   "problem": "sum_list",
+   "true": "M2_INDEX_FROM_ONE",
+   "predicted": "M1_RANGE_OFF_BY_ONE",
+   "confidence": 0.995,
+   "p_true": 0.002,
+   "note": "while starting at 1",
+   "code": "def sum_list(numbers):\n    total = 0\n    i = 1\n    while i < len(numbers):\n        total += numbers[i]\n        i += 1\n    return total\n",
+   "signals": {
+    "pass_frac": 0.2
+   },
+   "why": "A `while` loop that starts at index 1 silently skips the first item. No AST signal covers a while-loop start at 1 (only `range(1, ...)` is detected) and every while-based M2 example in training crashed with IndexError, so a quiet wrong sum was read as M1."
+  },
+  {
+   "runner_up": "M5_RETURN_IN_LOOP",
+   "id": "R28",
+   "problem": "count_evens",
+   "true": "M5_RETURN_IN_LOOP",
+   "predicted": "M1_RANGE_OFF_BY_ONE",
+   "confidence": 0.504,
+   "p_true": 0.456,
+   "note": "return directly in while body",
+   "code": "def count_evens(nums):\n    count = 0\n    i = 0\n    while i < len(nums):\n        if nums[i] % 2 == 0:\n            count = count + 1\n        i = i + 1\n        return count\n    return count\n",
+   "signals": {
+    "ret_in_loop": 1,
+    "ret_direct_in_loop": 1,
+    "pass_frac": 0.6
+   },
+   "why": "The only structural signal that fired was a `return` directly in the `while` body, and the code still passes 3 of 5 tests because the first item often decides the answer; the model split 0.50 M1 vs 0.46 M5."
+  }
+ ],
+ "close_calls": [
+  {
+   "runner_up": "M5_RETURN_IN_LOOP",
+   "id": "R15",
+   "problem": "nth_item",
+   "true": "M2_INDEX_FROM_ONE",
+   "predicted": "M2_INDEX_FROM_ONE",
+   "confidence": 0.278,
+   "p_true": 0.278,
+   "note": "items[n] with try/except fallback",
+   "code": "def nth_item(items, n):\n    try:\n        return items[n]\n    except IndexError:\n        return items[-1]\n",
+   "signals": {
+    "sub_idx_bare_param": 1,
+    "pass_frac": 0.33
+   },
+   "why": "`try/except` swallows the IndexError that normally gives M2 away, leaving only the weak `items[n]` signal; 0.28 (M2) vs 0.27 (M5) is a coin flip that happened to land right."
+  },
+  {
+   "runner_up": "CORRECT",
+   "id": "R21",
+   "problem": "square",
+   "true": "M3_PRINT_NOT_RETURN",
+   "predicted": "M3_PRINT_NOT_RETURN",
+   "confidence": 0.48,
+   "p_true": 0.48,
+   "note": "print with label and explicit return None",
+   "code": "def square(n):\n    print(\"square is\", n ** 2)\n    return None\n",
+   "signals": {
+    "none_frac": 1.0
+   },
+   "why": "An explicit `return None` defeats the structural 'prints but never returns' signal; only behavioural evidence (printed output, returned None) carried the M3 call."
+  }
+ ],
+ "model": "trained on all 22 problems",
+ "description": "40 hand-written snippets: different structures, extra prints, comments, odd names; never used for training or selection"
+}

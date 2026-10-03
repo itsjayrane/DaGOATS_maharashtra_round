@@ -152,6 +152,7 @@ def main():
     final = fit(rows, CONFIGS[best]); final.T = T
     joblib.dump(dict(model=final, labels=LABELS, config=best, temperature=T), ART / "diagnoser.joblib")
     print("saved models + docs/metrics.md + docs/confusion_matrix.png")
+    import realistic_eval; realistic_eval.run()  # headline: hand-written realistic set (also refreshes docs/realistic.json)
 
 
 if __name__ == "__main__":

@@ -209,7 +209,10 @@ def metrics():
     f = DOCS / "metrics.json"
     if not f.exists():
         raise HTTPException(404, "metrics.json missing: run `cd ml && python train.py`")
-    return json.loads(f.read_text(encoding="utf-8"))
+    out = json.loads(f.read_text(encoding="utf-8"))
+    r = DOCS / "realistic.json"  # hand-written realistic set: the headline number
+    out["realistic"] = json.loads(r.read_text(encoding="utf-8")) if r.exists() else None
+    return out
 
 
 @app.get("/metrics/confusion-matrix")

@@ -35,6 +35,72 @@ function BaselineCard({ b }) {
   )
 }
 
+const pct = (x) => `${Math.round(x * 100)}%`
+
+function Tile({ label, value, sub, tone }) {
+  return (
+    <div className="rounded-lg border border-line bg-raised p-3">
+      <p className="text-xs text-muted">{label}</p>
+      <p className={`mt-1 text-3xl font-semibold tabular-nums ${tone || ''}`}>{value}</p>
+      {sub && <p className="mt-1 text-xs text-muted">{sub}</p>}
+    </div>
+  )
+}
+
+function Example({ e, kind }) {
+  const short = (l) => l.split('_')[0]
+  return (
+    <div className="rounded-lg border border-line bg-raised p-4">
+      <div className="flex flex-wrap items-center gap-2 text-sm">
+        <Pill tone={kind === 'miss' ? 'bad' : 'warn'}>{kind === 'miss' ? 'misclassified' : 'close call'}</Pill>
+        <span className="font-mono text-xs text-muted">{e.id} · {e.problem}</span>
+        <span className="ml-auto text-xs">
+          true <strong>{short(e.true)}</strong>
+          {kind === 'miss'
+            ? <> → predicted <strong className="text-bad">{short(e.predicted)}</strong> at {pct(e.confidence)}</>
+            : <> · only {pct(e.confidence)} sure (runner-up {short(e.runner_up)})</>}
+        </span>
+      </div>
+      <p className="mt-2 text-sm text-ink/90">{e.why || e.note}</p>
+      <details className="mt-2">
+        <summary className="cursor-pointer text-xs text-accent">show the code</summary>
+        <pre className="mt-2 overflow-x-auto rounded-lg border border-line bg-[#0d1320] p-3 font-mono text-[12px] leading-relaxed">{e.code}</pre>
+      </details>
+    </div>
+  )
+}
+
+function RealisticCard({ r }) {
+  if (!r) return null
+  const [lo, hi] = r.accuracy_ci95
+  return (
+    <Card title="Realistic set · headline" right={<Pill tone="info">{r.n} hand-written snippets</Pill>}>
+      <p className="mb-4 text-sm text-muted">
+        Messier code written by hand, with different structures, extra prints, comments, odd names and partial solutions. It is independent of the
+        generator templates and was never used for training or model selection; the serving model was evaluated on it once.
+      </p>
+      <div className="grid grid-cols-2 gap-3 lg:grid-cols-4">
+        <Tile label="Accuracy" value={f(r.accuracy)} sub={`${r.correct}/${r.n} · 95% CI ${lo.toFixed(2)}–${hi.toFixed(2)}`} />
+        <Tile label="Macro-F1" value={f(r.macro_f1)} />
+        {Object.entries(r.twin_pairs).map(([k, t]) => (
+          <Tile key={k} label={`${k.replace('_', ' vs ')} twin accuracy`} value={f(t.exact)} sub={`${t.correct}/${t.n} · ${pct(t.swapped)} swapped with the twin`} />
+        ))}
+      </div>
+      <p className="mt-3 text-xs text-muted">With 40 samples the intervals are wide: read this as an honest check on messier code, not a precise estimate.</p>
+
+      {(r.errors.length > 0 || r.close_calls.length > 0) && (
+        <div className="mt-6">
+          <h3 className="mb-2 text-xs font-semibold uppercase tracking-wide text-muted">Where it fails, and where it nearly did</h3>
+          <div className="space-y-3">
+            {r.errors.map((e) => <Example key={e.id} e={e} kind="miss" />)}
+            {r.close_calls.map((e) => <Example key={e.id} e={e} kind="close" />)}
+          </div>
+        </div>
+      )}
+    </Card>
+  )
+}
+
 export default function Eval() {
   const [m, setM] = useState(null)
   const [base, setBase] = useState(null)
@@ -50,7 +116,9 @@ export default function Eval() {
 
   return (
     <div className="space-y-6">
-      <Card title="Held-out evaluation">
+      <RealisticCard r={m.realistic} />
+
+      <Card title="Template held-out set" right={<Pill tone="warn">optimistic upper bound</Pill>}>
         <div className="mb-4 rounded-lg border border-warn/40 bg-warn/10 p-3 text-sm text-warn">
           {m.caveat} Data are {m.data}; no real learner code was used.
         </div>

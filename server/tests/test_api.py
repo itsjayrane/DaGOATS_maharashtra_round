@@ -153,6 +153,10 @@ def test_failed_reassess_lowers_mastery_and_clears_resolved(c):
 def test_metrics(c):
     r = c.get("/metrics").json()
     assert "holdout" in r and "accuracy" in r["holdout"] and "twin_pairs" in r["holdout"] and "caveat" in r
+    rr = r["realistic"]
+    assert rr and rr["n"] == 40 and 0 <= rr["accuracy"] <= 1 and len(rr["accuracy_ci95"]) == 2
+    assert {"M1_M2", "M4_M5"} <= set(rr["twin_pairs"]) and all(e["why"] for e in rr["errors"] + rr["close_calls"])
+    assert rr["accuracy"] < r["holdout"]["accuracy"]  # the realistic set must be the harder one
 
 
 def test_confusion_matrix_image(c):
