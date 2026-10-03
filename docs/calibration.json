@@ -1,0 +1,304 @@
+{
+ "description": "Reliability of the top-class probability (10 equal-width bins) before and after temperature scaling (T from ml/artifacts/threshold.json). ECE = sample-weighted mean |accuracy - confidence| over bins.",
+ "temperature": 3.2499999999999996,
+ "out_of_fold": {
+  "note": "grouped 5-fold CV over the training problems - the data T was fitted on",
+  "n": 2441,
+  "ece_before": 0.11130753423488676,
+  "ece_after": 0.0876427303929795,
+  "bins_before": [
+   {
+    "lo": 0.0,
+    "hi": 0.1,
+    "n": 0,
+    "confidence": null,
+    "accuracy": null
+   },
+   {
+    "lo": 0.1,
+    "hi": 0.2,
+    "n": 0,
+    "confidence": null,
+    "accuracy": null
+   },
+   {
+    "lo": 0.2,
+    "hi": 0.30000000000000004,
+    "n": 17,
+    "confidence": 0.24407372009317582,
+    "accuracy": 0.0
+   },
+   {
+    "lo": 0.30000000000000004,
+    "hi": 0.4,
+    "n": 28,
+    "confidence": 0.36712338065548245,
+    "accuracy": 0.8571428571428571
+   },
+   {
+    "lo": 0.4,
+    "hi": 0.5,
+    "n": 0,
+    "confidence": null,
+    "accuracy": null
+   },
+   {
+    "lo": 0.5,
+    "hi": 0.6000000000000001,
+    "n": 11,
+    "confidence": 0.5574691876481453,
+    "accuracy": 0.8181818181818182
+   },
+   {
+    "lo": 0.6000000000000001,
+    "hi": 0.7000000000000001,
+    "n": 23,
+    "confidence": 0.6614582279613331,
+    "accuracy": 0.17391304347826086
+   },
+   {
+    "lo": 0.7000000000000001,
+    "hi": 0.8,
+    "n": 68,
+    "confidence": 0.7572144411828301,
+    "accuracy": 0.6911764705882353
+   },
+   {
+    "lo": 0.8,
+    "hi": 0.9,
+    "n": 47,
+    "confidence": 0.8571315844248028,
+    "accuracy": 0.5957446808510638
+   },
+   {
+    "lo": 0.9,
+    "hi": 1.0,
+    "n": 2247,
+    "confidence": 0.9942032700653088,
+    "accuracy": 0.894971072541166
+   }
+  ],
+  "bins_after": [
+   {
+    "lo": 0.0,
+    "hi": 0.1,
+    "n": 0,
+    "confidence": null,
+    "accuracy": null
+   },
+   {
+    "lo": 0.1,
+    "hi": 0.2,
+    "n": 45,
+    "confidence": 0.1567626944671005,
+    "accuracy": 0.5333333333333333
+   },
+   {
+    "lo": 0.2,
+    "hi": 0.30000000000000004,
+    "n": 68,
+    "confidence": 0.260377357052773,
+    "accuracy": 0.39705882352941174
+   },
+   {
+    "lo": 0.30000000000000004,
+    "hi": 0.4,
+    "n": 131,
+    "confidence": 0.37064713951589306,
+    "accuracy": 0.549618320610687
+   },
+   {
+    "lo": 0.4,
+    "hi": 0.5,
+    "n": 112,
+    "confidence": 0.42482456713609346,
+    "accuracy": 0.7232142857142857
+   },
+   {
+    "lo": 0.5,
+    "hi": 0.6000000000000001,
+    "n": 78,
+    "confidence": 0.5515137181495372,
+    "accuracy": 0.8717948717948718
+   },
+   {
+    "lo": 0.6000000000000001,
+    "hi": 0.7000000000000001,
+    "n": 103,
+    "confidence": 0.6537964297190263,
+    "accuracy": 0.5825242718446602
+   },
+   {
+    "lo": 0.7000000000000001,
+    "hi": 0.8,
+    "n": 149,
+    "confidence": 0.7573910556224974,
+    "accuracy": 0.8322147651006712
+   },
+   {
+    "lo": 0.8,
+    "hi": 0.9,
+    "n": 390,
+    "confidence": 0.8543335223881939,
+    "accuracy": 0.8128205128205128
+   },
+   {
+    "lo": 0.9,
+    "hi": 1.0,
+    "n": 1365,
+    "confidence": 0.9368723483321201,
+    "accuracy": 0.989010989010989
+   }
+  ]
+ },
+ "holdout": {
+  "note": "the 4 held-out problems - never used to fit T (independent check)",
+  "n": 709,
+  "ece_before": 0.03018193049475852,
+  "ece_after": 0.07621417211165973,
+  "bins_before": [
+   {
+    "lo": 0.0,
+    "hi": 0.1,
+    "n": 0,
+    "confidence": null,
+    "accuracy": null
+   },
+   {
+    "lo": 0.1,
+    "hi": 0.2,
+    "n": 0,
+    "confidence": null,
+    "accuracy": null
+   },
+   {
+    "lo": 0.2,
+    "hi": 0.30000000000000004,
+    "n": 0,
+    "confidence": null,
+    "accuracy": null
+   },
+   {
+    "lo": 0.30000000000000004,
+    "hi": 0.4,
+    "n": 0,
+    "confidence": null,
+    "accuracy": null
+   },
+   {
+    "lo": 0.4,
+    "hi": 0.5,
+    "n": 0,
+    "confidence": null,
+    "accuracy": null
+   },
+   {
+    "lo": 0.5,
+    "hi": 0.6000000000000001,
+    "n": 5,
+    "confidence": 0.5466246277572957,
+    "accuracy": 0.0
+   },
+   {
+    "lo": 0.6000000000000001,
+    "hi": 0.7000000000000001,
+    "n": 0,
+    "confidence": null,
+    "accuracy": null
+   },
+   {
+    "lo": 0.7000000000000001,
+    "hi": 0.8,
+    "n": 1,
+    "confidence": 0.7004872234691347,
+    "accuracy": 1.0
+   },
+   {
+    "lo": 0.8,
+    "hi": 0.9,
+    "n": 1,
+    "confidence": 0.8838524803201622,
+    "accuracy": 0.0
+   },
+   {
+    "lo": 0.9,
+    "hi": 1.0,
+    "n": 702,
+    "confidence": 0.9992628209759918,
+    "accuracy": 0.9743589743589743
+   }
+  ],
+  "bins_after": [
+   {
+    "lo": 0.0,
+    "hi": 0.1,
+    "n": 0,
+    "confidence": null,
+    "accuracy": null
+   },
+   {
+    "lo": 0.1,
+    "hi": 0.2,
+    "n": 0,
+    "confidence": null,
+    "accuracy": null
+   },
+   {
+    "lo": 0.2,
+    "hi": 0.30000000000000004,
+    "n": 0,
+    "confidence": null,
+    "accuracy": null
+   },
+   {
+    "lo": 0.30000000000000004,
+    "hi": 0.4,
+    "n": 5,
+    "confidence": 0.3815833926706661,
+    "accuracy": 0.0
+   },
+   {
+    "lo": 0.4,
+    "hi": 0.5,
+    "n": 9,
+    "confidence": 0.4682763160513542,
+    "accuracy": 0.8888888888888888
+   },
+   {
+    "lo": 0.5,
+    "hi": 0.6000000000000001,
+    "n": 5,
+    "confidence": 0.5972645481236372,
+    "accuracy": 1.0
+   },
+   {
+    "lo": 0.6000000000000001,
+    "hi": 0.7000000000000001,
+    "n": 14,
+    "confidence": 0.6835488213010849,
+    "accuracy": 1.0
+   },
+   {
+    "lo": 0.7000000000000001,
+    "hi": 0.8,
+    "n": 29,
+    "confidence": 0.745981503965729,
+    "accuracy": 0.7931034482758621
+   },
+   {
+    "lo": 0.8,
+    "hi": 0.9,
+    "n": 160,
+    "confidence": 0.8552919848775756,
+    "accuracy": 0.925
+   },
+   {
+    "lo": 0.9,
+    "hi": 1.0,
+    "n": 487,
+    "confidence": 0.9396743216785889,
+    "accuracy": 1.0
+   }
+  ]
+ }
+}

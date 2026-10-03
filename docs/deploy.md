@@ -9,7 +9,7 @@
   so the previous deploy stays live.
 - Startup runs the same check and **refuses to start**, listing every missing file and the fix, rather than serving without a model.
 - To change the model: `cd ml && python -m relearn_ml.generate && python train.py` (deterministic), then commit `ml/artifacts/` and `docs/`.
-  The heavier leave-one-misconception-out evaluation (`ml/eval_unseen.py`) is **not** part of the build; its output `docs/unseen_eval.json` is committed.
+  The evaluation scripts (`ml/eval_unseen.py`, `ml/eval_models.py`) are **not** part of the build; their outputs in `docs/*.json` are committed.
 - Start: `cd server && uvicorn app.main:app --host 0.0.0.0 --port $PORT`. Health check: `/health`.
 - `content/*.json` and `docs/*.json` are read from the repo checkout, so they ship with the service.
 - No API keys: the app makes no external calls (no LLM).

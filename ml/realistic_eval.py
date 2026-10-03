@@ -43,6 +43,21 @@ def wilson(k, n, z=1.96):
     return (max(0.0, c - h), min(1.0, c + h))
 
 
+def bootstrap(y, pred, labels, n=1000, seed=0):
+    """95% percentile CIs for accuracy and macro-F1, resampling the samples with replacement (deterministic seed)."""
+    import numpy as np
+    from sklearn.metrics import f1_score
+    rng = np.random.default_rng(seed)
+    y, pred = np.asarray(y), np.asarray(pred)
+    acc, mf1 = [], []
+    for _ in range(n):
+        i = rng.integers(0, len(y), len(y))
+        acc.append(float((y[i] == pred[i]).mean()))
+        mf1.append(f1_score(y[i], pred[i], labels=labels, average="macro", zero_division=0))
+    q = lambda v: [float(np.percentile(v, 2.5)), float(np.percentile(v, 97.5))]
+    return dict(accuracy_ci95=q(acc), macro_f1_ci95=q(mf1), n_resamples=n, seed=seed)
+
+
 def run():
     import joblib
     import numpy as np
@@ -106,7 +121,11 @@ def run():
                  confidently_mislabelled=sum(not it["unknown"] for it in items), items=items,
                  description="10 hand-written wrong-formula snippets (OTHER_BUG); never used for training or tuning")
 
+    cols = present + sorted(set(pred) - set(present), key=LABELS.index)  # predicted-only labels (e.g. OTHER_BUG) as extra columns
+    confusion = dict(rows=present, cols=cols, matrix=[[sum(1 for t, q in zip(y, pred) if t == a and q == b) for b in cols] for a in present],
+                     note="rows = true label, columns = top-1 prediction of the serving model (an OTHER_BUG column = abstained)")
     res = dict(n=len(y), accuracy=k / len(y), accuracy_ci95=[lo, hi], correct=k, abstention=abstention, other_bug=other,
+               bootstrap=bootstrap(y, pred, present), confusion=confusion,
                macro_f1=float(f1_score(y, pred, labels=present, average="macro", zero_division=0)),
                twin_pairs=twin, per_class=per_class, errors=errors, close_calls=close,
                model="trained on all 22 problems",

@@ -1,0 +1,59 @@
+{
+ "description": "LightGBM retrained on the training problems with feature groups removed; scored on the Realistic set (and the held-out problems). Report only - the production feature set was chosen by grouped CV on the training problems, not by these numbers.",
+ "split": {
+  "train": "2441 samples from 18 training problems",
+  "holdout": "709 samples from held-out problems ['sum_list', 'average', 'shout', 'double_all']",
+  "realistic": "40 hand-written snippets"
+ },
+ "results": [
+  {
+   "features": "all (AST + execution + task flags)",
+   "realistic_macro_f1": 0.9034391534391535,
+   "realistic_accuracy": 0.875,
+   "holdout_macro_f1": 0.958069979046471,
+   "holdout_accuracy": 0.9661495063469676
+  },
+  {
+   "features": "AST only",
+   "realistic_macro_f1": 0.8084656084656084,
+   "realistic_accuracy": 0.775,
+   "holdout_macro_f1": 0.7807107189960517,
+   "holdout_accuracy": 0.7517630465444288
+  },
+  {
+   "features": "execution only",
+   "realistic_macro_f1": 0.691005291005291,
+   "realistic_accuracy": 0.725,
+   "holdout_macro_f1": 0.6283048065285808,
+   "holdout_accuracy": 0.7193229901269393
+  },
+  {
+   "features": "task flags only",
+   "realistic_macro_f1": 0.44595959595959594,
+   "realistic_accuracy": 0.425,
+   "holdout_macro_f1": 0.10171122994652407,
+   "holdout_accuracy": 0.15796897038081806
+  },
+  {
+   "features": "without AST",
+   "realistic_macro_f1": 0.8289241622574957,
+   "realistic_accuracy": 0.8,
+   "holdout_macro_f1": 0.6314595807929845,
+   "holdout_accuracy": 0.688293370944993
+  },
+  {
+   "features": "without execution",
+   "realistic_macro_f1": 0.869172932330827,
+   "realistic_accuracy": 0.825,
+   "holdout_macro_f1": 0.8317807140572329,
+   "holdout_accuracy": 0.7884344146685472
+  },
+  {
+   "features": "without task flags",
+   "realistic_macro_f1": 0.8706349206349207,
+   "realistic_accuracy": 0.85,
+   "holdout_macro_f1": 0.9637301705651691,
+   "holdout_accuracy": 0.9717912552891397
+  }
+ ]
+}

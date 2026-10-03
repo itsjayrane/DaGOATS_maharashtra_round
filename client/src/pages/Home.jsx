@@ -189,7 +189,7 @@ export default function Home() {
         <div ref={diagRef} className="scroll-mt-20 space-y-6">
           <DiagnosisCard diag={diag} fn={problems.find((p) => p.id === submitted?.pid)?.function ?? problem?.function} />
           {twinClose && <QuickCheck key={`probe:${submitted?.n}`} a={diagnosed} b={diag.runner_up.label} current={diagnosed} learnerId={lid} problemId={submitted?.pid ?? pid} onPick={setOverride} />}
-          {(unknownBug || misconception) && <ExplainPanel key={`explain:${misconception}:${submitted?.n}`} label={misconception} problemId={submitted?.pid ?? pid} code={submitted?.code ?? code} />}
+          {(unknownBug || misconception) && <ExplainPanel key={`explain:${misconception}:${submitted?.n}`} label={misconception} whyFeatures={diag.why_features ?? []} problemId={submitted?.pid ?? pid} code={submitted?.code ?? code} />}
           {misconception && <InterventionPanel key={`${misconception}:${submitted?.n}`} explained label={misconception} problemId={submitted?.pid ?? pid} code={submitted?.code ?? code} learnerId={lid} onProve={prove} />}
         </div>
       )}

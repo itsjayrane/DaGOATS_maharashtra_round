@@ -98,3 +98,29 @@ def test_metrics_carry_the_abstention_numbers(c):
     assert set(u["per_class"]) == set(MISCONCEPTIONS) and 0 <= u["mean_flagged_unknown"] <= 1
     o = m["realistic"]["other_bug"]
     assert o["n"] == 10 and o["flagged_unknown"] + o["confidently_mislabelled"] == 10
+
+
+def test_why_features_explain_the_diagnosis_in_plain_english(c):
+    r = diag(c, "product", M5_PRODUCT)
+    w = r["why_features"]
+    assert 1 <= len(w) <= 3 and all(set(x) == {"name", "value", "plain_english", "contribution"} for x in w)
+    assert [x["contribution"] for x in w] == sorted((x["contribution"] for x in w), reverse=True) and w[0]["contribution"] > 0
+    assert any("return" in x["plain_english"] for x in w) and not any("_" in x["plain_english"] for x in w)
+    sq = diag(c, "square", "def square(n):\n    print(n * n)\n")["why_features"]
+    assert any("never returns" in x["plain_english"] for x in sq)
+    assert diag(c, "square", "def square(n)\n    return n\n")["why_features"] == []  # syntax error: nothing to explain
+
+
+def test_metrics_carry_the_model_evaluation_files(c):
+    m = c.get("/metrics").json()
+    names = [x["model"] for x in m["model_comparison"]["models"]]
+    assert names == ["Majority baseline", "Logistic regression", "LightGBM (production)"]
+    for x in m["model_comparison"]["models"]:
+        lo, hi = x["realistic"]["bootstrap"]["accuracy_ci95"]
+        assert lo <= x["realistic"]["accuracy"] <= hi
+    assert {r["features"] for r in m["ablation"]["results"]} >= {"AST only", "execution only", "task flags only"}
+    for part in ("out_of_fold", "holdout"):
+        cal = m["calibration"][part]
+        assert len(cal["bins_before"]) == len(cal["bins_after"]) == 10 and 0 <= cal["ece_after"] <= 1
+    cm = m["realistic"]["confusion"]
+    assert sum(map(sum, cm["matrix"])) == m["realistic"]["n"] and m["realistic"]["bootstrap"]["n_resamples"] == 1000

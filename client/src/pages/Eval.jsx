@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react'
 import { api } from '../api'
 import { Card, ErrorNote, Pill } from '../components/ui'
 import { short } from '../labels'
+import { AblationCard, CalibrationCard, ComparisonCard, ModelCardSection, RealisticConfusion } from '../components/ModelEval'
 
 const f = (x) => (typeof x === 'number' ? x.toFixed(3) : '-')
 
@@ -124,7 +125,17 @@ export default function Eval() {
 
   return (
     <div className="space-y-6">
+      <ModelCardSection m={m} />
+
       <RealisticCard r={m.realistic} />
+
+      <RealisticConfusion r={m.realistic} />
+
+      <ComparisonCard c={m.model_comparison} />
+
+      <AblationCard a={m.ablation} />
+
+      <CalibrationCard c={m.calibration} />
 
       <AbstentionCard m={m} />
 

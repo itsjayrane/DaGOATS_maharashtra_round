@@ -6,6 +6,7 @@ import numpy as np
 
 from .artifacts import THRESHOLD_PATH, load_model
 from .paths import MODEL_PATH
+from .why import why_features
 from relearn_ml.features import featurize  # noqa: E402  (ml/ is put on sys.path by paths.py)
 from relearn_ml.labels import LABELS, TWIN_OF  # noqa: E402
 
@@ -102,10 +103,10 @@ class DiagnoserService:
         """strict=True (custom, out-of-distribution problems) demands more confidence before naming a misconception."""
         if exec_res["status"] != "ok":
             msg = exec_res.get("error", exec_res["status"])
-            return dict(label=None, confidence=None, probabilities=None, ambiguous=False, runner_up=None, verdict="unknown", unknown=True,
+            return dict(label=None, confidence=None, probabilities=None, ambiguous=False, runner_up=None, verdict="unknown", unknown=True, why_features=[],
                         unknown_reason=msg, closest_guess=None, evidence=[dict(kind="error", text=msg)])
         if is_no_attempt(code, problem["fn"]):
-            return dict(label=None, confidence=None, probabilities=None, ambiguous=False, runner_up=None, no_attempt=True,
+            return dict(label=None, confidence=None, probabilities=None, ambiguous=False, runner_up=None, no_attempt=True, why_features=[],
                         verdict="unknown", unknown=True, unknown_reason=NO_ATTEMPT_MSG, closest_guess=None,
                         error=NO_ATTEMPT_MSG, evidence=[dict(kind="error", text=NO_ATTEMPT_MSG)])
         feats = featurize(code, problem, exec_res)
@@ -130,6 +131,7 @@ class DiagnoserService:
         return dict(label=label, confidence=round(float(P[k]), 4), probabilities={LABELS[i]: round(float(P[i]), 4) for i in range(len(LABELS))},
                     ambiguous=ambiguous, runner_up=dict(label=runner, probability=round(float(P[order[1]]), 4)), evidence=ev,
                     verdict=verdict, unknown=verdict == "unknown", unknown_reason=reason,
+                    why_features=why_features(self.model, self.names, self.model._X([feats]), k),
                     closest_guess=dict(label=LABELS[g], probability=round(float(P[g]), 4)))
 
     def _verdict(self, label, conf, tests, strict):

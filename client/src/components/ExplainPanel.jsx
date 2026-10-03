@@ -16,7 +16,7 @@ function Step({ n, title, children }) {
 
 // The student explanation card (POST /explain, deterministic): what went wrong -> why -> your code fixed -> best solution.
 // A fix of the learner's own code is shown only if it passes every test.
-export default function ExplainPanel({ problemId, code, label }) {
+export default function ExplainPanel({ problemId, code, label, whyFeatures = [] }) {
   const [data, setData] = useState(null)
   const [error, setError] = useState('')
   useEffect(() => {
@@ -44,6 +44,23 @@ export default function ExplainPanel({ problemId, code, label }) {
         </Step>
         <Step n={2} title="Why">
           <p className="text-sm leading-relaxed text-ink/90" data-testid="explain-why">{data.why?.text}</p>
+          {whyFeatures.length > 0 && (
+            <details className="mt-2 text-sm" data-testid="why-features">
+              <summary className="min-h-[44px] cursor-pointer py-2 text-muted">Why the model thinks so</summary>
+              <p className="mb-2 text-xs text-muted">The 3 signals that pushed the model most toward its answer (LightGBM feature contributions).</p>
+              <ul className="space-y-2">
+                {whyFeatures.map((f) => {
+                  const max = Math.max(...whyFeatures.map((x) => x.contribution))
+                  return (
+                    <li key={f.name}>
+                      <div className="flex justify-between gap-3"><span className="text-ink/90">{f.plain_english}</span><span className="shrink-0 font-mono text-xs text-muted" title="contribution in log-odds">+{f.contribution.toFixed(2)}</span></div>
+                      <div className="mt-1 h-1.5 rounded-full bg-raised"><div className="h-full rounded-full bg-accent" style={{ width: `${(f.contribution / max) * 100}%` }} /></div>
+                    </li>
+                  )
+                })}
+              </ul>
+            </details>
+          )}
         </Step>
         <Step n={3} title="Your code, fixed">
           {fix ? (

@@ -120,7 +120,7 @@ def diagnose(body: DiagnoseIn, request: Request):
     out = dict(in_distribution=not p.get("custom"), label=d["label"], confidence=d["confidence"], evidence=d["evidence"], test_results=clean_tests(res),
                passed=passed, status=res["status"], error=res.get("error") or d.get("error"), probabilities=d["probabilities"],
                ambiguous=d["ambiguous"], runner_up=d["runner_up"], verdict=d["verdict"], unknown=d["unknown"],
-               unknown_reason=d["unknown_reason"], closest_guess=d["closest_guess"])
+               unknown_reason=d["unknown_reason"], closest_guess=d["closest_guess"], why_features=d["why_features"])
     if body.learner_id:
         lab = d["label"]
         upd = None
@@ -282,6 +282,9 @@ def metrics():
     out["realistic"] = json.loads(r.read_text(encoding="utf-8")) if r.exists() else None
     u = DOCS / "unseen_eval.json"  # leave-one-misconception-out (ml/eval_unseen.py)
     out["unseen"] = json.loads(u.read_text(encoding="utf-8")) if u.exists() else None
+    for key in ("model_comparison", "ablation", "calibration"):  # ml/eval_models.py
+        f = DOCS / f"{key}.json"
+        out[key] = json.loads(f.read_text(encoding="utf-8")) if f.exists() else None
     return out
 
 

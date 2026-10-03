@@ -1,0 +1,226 @@
+{
+ "description": "Same grouped split for every model: trained on the training problems only, scored on the held-out problems and on the hand-written Realistic set (top-1, no abstention; never used for training or selection). Bootstrap: 1000 resamples of the Realistic set. The headline Realistic numbers elsewhere use the serving model, which is trained on all 22 problems.",
+ "split": {
+  "train": "2441 samples from 18 training problems",
+  "holdout": "709 samples from held-out problems ['sum_list', 'average', 'shout', 'double_all']",
+  "realistic": "40 hand-written snippets"
+ },
+ "models": [
+  {
+   "model": "Majority baseline",
+   "realistic": {
+    "n": 40,
+    "accuracy": 0.225,
+    "macro_f1": 0.04081632653061225,
+    "per_class_recall": {
+     "CORRECT": 1.0,
+     "M1_RANGE_OFF_BY_ONE": 0.0,
+     "M2_INDEX_FROM_ONE": 0.0,
+     "M3_PRINT_NOT_RETURN": 0.0,
+     "M4_ACCUMULATOR_RESET": 0.0,
+     "M5_RETURN_IN_LOOP": 0.0,
+     "M6_FLOAT_DIVISION": 0.0,
+     "M7_STRING_MUTABLE": 0.0,
+     "M8_LIST_ALIASING": 0.0
+    },
+    "twin_pairs": {
+     "M1_M2": {
+      "n": 8,
+      "exact": 0.0,
+      "swapped": 0.0
+     },
+     "M4_M5": {
+      "n": 8,
+      "exact": 0.0,
+      "swapped": 0.0
+     }
+    },
+    "bootstrap": {
+     "accuracy_ci95": [
+      0.1,
+      0.35
+     ],
+     "macro_f1_ci95": [
+      0.020202020202020204,
+      0.05761316872427983
+     ],
+     "n_resamples": 1000,
+     "seed": 0
+    }
+   },
+   "holdout": {
+    "n": 709,
+    "accuracy": 0.2764456981664316,
+    "macro_f1": 0.04331491712707182,
+    "per_class_recall": {
+     "CORRECT": 1.0,
+     "M1_RANGE_OFF_BY_ONE": 0.0,
+     "M2_INDEX_FROM_ONE": 0.0,
+     "M3_PRINT_NOT_RETURN": 0.0,
+     "M4_ACCUMULATOR_RESET": 0.0,
+     "M5_RETURN_IN_LOOP": 0.0,
+     "M6_FLOAT_DIVISION": 0.0,
+     "M7_STRING_MUTABLE": 0.0,
+     "M8_LIST_ALIASING": 0.0,
+     "OTHER_BUG": 0.0
+    },
+    "twin_pairs": {
+     "M1_M2": {
+      "n": 154,
+      "exact": 0.0,
+      "swapped": 0.0
+     },
+     "M4_M5": {
+      "n": 112,
+      "exact": 0.0,
+      "swapped": 0.0
+     }
+    }
+   }
+  },
+  {
+   "model": "Logistic regression",
+   "realistic": {
+    "n": 40,
+    "accuracy": 0.875,
+    "macro_f1": 0.8905539993775287,
+    "per_class_recall": {
+     "CORRECT": 0.8888888888888888,
+     "M1_RANGE_OFF_BY_ONE": 0.75,
+     "M2_INDEX_FROM_ONE": 0.75,
+     "M3_PRINT_NOT_RETURN": 0.75,
+     "M4_ACCUMULATOR_RESET": 1.0,
+     "M5_RETURN_IN_LOOP": 1.0,
+     "M6_FLOAT_DIVISION": 1.0,
+     "M7_STRING_MUTABLE": 0.6666666666666666,
+     "M8_LIST_ALIASING": 1.0
+    },
+    "twin_pairs": {
+     "M1_M2": {
+      "n": 8,
+      "exact": 0.75,
+      "swapped": 0.125
+     },
+     "M4_M5": {
+      "n": 8,
+      "exact": 1.0,
+      "swapped": 0.0
+     }
+    },
+    "bootstrap": {
+     "accuracy_ci95": [
+      0.775,
+      0.975
+     ],
+     "macro_f1_ci95": [
+      0.7158360566448801,
+      0.9690621905327788
+     ],
+     "n_resamples": 1000,
+     "seed": 0
+    }
+   },
+   "holdout": {
+    "n": 709,
+    "accuracy": 0.9788434414668548,
+    "macro_f1": 0.9709402501157944,
+    "per_class_recall": {
+     "CORRECT": 1.0,
+     "M1_RANGE_OFF_BY_ONE": 1.0,
+     "M2_INDEX_FROM_ONE": 0.8142857142857143,
+     "M3_PRINT_NOT_RETURN": 1.0,
+     "M4_ACCUMULATOR_RESET": 1.0,
+     "M5_RETURN_IN_LOOP": 1.0,
+     "M6_FLOAT_DIVISION": 1.0,
+     "M7_STRING_MUTABLE": 1.0,
+     "M8_LIST_ALIASING": 1.0,
+     "OTHER_BUG": 0.9459459459459459
+    },
+    "twin_pairs": {
+     "M1_M2": {
+      "n": 154,
+      "exact": 0.9155844155844156,
+      "swapped": 0.0
+     },
+     "M4_M5": {
+      "n": 112,
+      "exact": 1.0,
+      "swapped": 0.0
+     }
+    }
+   }
+  },
+  {
+   "model": "LightGBM (production)",
+   "realistic": {
+    "n": 40,
+    "accuracy": 0.875,
+    "macro_f1": 0.9034391534391535,
+    "per_class_recall": {
+     "CORRECT": 1.0,
+     "M1_RANGE_OFF_BY_ONE": 0.75,
+     "M2_INDEX_FROM_ONE": 0.5,
+     "M3_PRINT_NOT_RETURN": 0.75,
+     "M4_ACCUMULATOR_RESET": 1.0,
+     "M5_RETURN_IN_LOOP": 0.75,
+     "M6_FLOAT_DIVISION": 1.0,
+     "M7_STRING_MUTABLE": 1.0,
+     "M8_LIST_ALIASING": 1.0
+    },
+    "twin_pairs": {
+     "M1_M2": {
+      "n": 8,
+      "exact": 0.625,
+      "swapped": 0.0
+     },
+     "M4_M5": {
+      "n": 8,
+      "exact": 0.875,
+      "swapped": 0.0
+     }
+    },
+    "bootstrap": {
+     "accuracy_ci95": [
+      0.75,
+      0.975
+     ],
+     "macro_f1_ci95": [
+      0.7248015873015873,
+      0.9777777777777779
+     ],
+     "n_resamples": 1000,
+     "seed": 0
+    }
+   },
+   "holdout": {
+    "n": 709,
+    "accuracy": 0.9661495063469676,
+    "macro_f1": 0.958069979046471,
+    "per_class_recall": {
+     "CORRECT": 1.0,
+     "M1_RANGE_OFF_BY_ONE": 0.8809523809523809,
+     "M2_INDEX_FROM_ONE": 0.8,
+     "M3_PRINT_NOT_RETURN": 1.0,
+     "M4_ACCUMULATOR_RESET": 1.0,
+     "M5_RETURN_IN_LOOP": 1.0,
+     "M6_FLOAT_DIVISION": 1.0,
+     "M7_STRING_MUTABLE": 1.0,
+     "M8_LIST_ALIASING": 1.0,
+     "OTHER_BUG": 1.0
+    },
+    "twin_pairs": {
+     "M1_M2": {
+      "n": 154,
+      "exact": 0.8441558441558441,
+      "swapped": 0.0
+     },
+     "M4_M5": {
+      "n": 112,
+      "exact": 1.0,
+      "swapped": 0.0
+     }
+    }
+   }
+  }
+ ]
+}

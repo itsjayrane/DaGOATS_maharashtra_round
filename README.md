@@ -202,6 +202,38 @@ Split **by problem**: 4 whole problems (`sum_list`, `average`, `shout`, `double_
 
 > **Treat these as an upper bound.** Held-out samples are renamed variants of a few dozen templates, and each held-out problem has close structural siblings in training. The more honest estimate is **grouped cross-validation over the 18 training problems** (10 classes): macro-F1 **0.766** for the production feature set (AST + execution + task flags) vs **0.654** with TF-IDF text features added - text memorises problem-specific wording, so the production model uses none.
 
+### Model evaluation: baselines, ablation, calibration, explainability
+
+Produced by [`ml/eval_models.py`](ml/eval_models.py) (separate from the build) and shown on the Eval page together with a model card and the Realistic confusion matrix. Every model is trained on the **same 18 training problems** and scored on the 4 held-out problems and the Realistic set (top-1, no abstention). 95% CIs are bootstrap, 1000 resamples ([`docs/model_comparison.json`](docs/model_comparison.json)).
+
+| model | Realistic accuracy | Realistic macro-F1 | twins M1/M2 | twins M4/M5 | held-out accuracy | held-out macro-F1 |
+|---|---|---|---|---|---|---|
+| Majority baseline | 0.225 (0.10-0.35) | 0.041 (0.02-0.06) | 0.000 | 0.000 | 0.276 | 0.043 |
+| Logistic regression | 0.875 (0.78-0.97) | 0.891 (0.72-0.97) | 0.750 | 1.000 | 0.979 | 0.971 |
+| LightGBM (production) | 0.875 (0.75-0.97) | 0.903 (0.72-0.98) | 0.625 | 0.875 | 0.966 | 0.958 |
+
+**Honest reading:** the features do most of the work. A plain logistic regression on the same features **ties LightGBM on Realistic accuracy and beats it on the held-out problems and on both twin pairs**; LightGBM is ahead only on Realistic macro-F1, and the CIs overlap almost completely. We keep LightGBM because its per-feature contributions drive the explanations and the abstention threshold was tuned for it, **not** because it is more accurate (logistic regression was never part of the grouped-CV model selection). With 40 snippets the Realistic set cannot separate the two.
+
+**Ablation** - LightGBM retrained with feature groups removed (macro-F1; [`docs/ablation.json`](docs/ablation.json)):
+
+| features | Realistic | held-out |
+|---|---|---|
+| all (AST + execution + task flags) | 0.903 | 0.958 |
+| AST only | 0.808 | 0.781 |
+| execution only | 0.691 | 0.628 |
+| task flags only | 0.446 | 0.102 |
+| without AST | 0.829 | 0.631 |
+| without execution | 0.869 | 0.832 |
+| without task flags | 0.871 | 0.964 |
+
+AST structure is the strongest single group and execution adds to it. "Task flags only" (6 numbers describing the problem's parameter and return types) scoring 0.446 on Realistic shows that **knowing which problem it is already narrows the likely mistake** - a reminder that problem identity leaks into the label.
+
+**Calibration** ([`docs/calibration.json`](docs/calibration.json), 10-bin reliability diagrams on the Eval page): temperature scaling (T = 3.25) lowers expected calibration error on the out-of-fold data it was fitted on (0.111 → 0.088) but **raises** it on the held-out problems (0.030 → 0.076), where the model becomes under-confident. Confidence percentages are therefore rough.
+
+**Realistic bootstrap CIs** (serving model, [`docs/realistic.json`](docs/realistic.json)): accuracy 0.875 (0.75-0.97), macro-F1 0.903 (0.72-0.98).
+
+**Explainability**: every diagnosis returns `why_features` - the top 3 LightGBM feature contributions (`pred_contrib`, i.e. TreeSHAP; no extra dependencies) with a plain-English sentence each ("your function prints but never returns"). The explanation card shows them under "Why the model thinks so".
+
 **No real learner data was used.** Real students write messier code and combine misconceptions.
 
 ## For teachers
@@ -292,6 +324,7 @@ cd ..\client; npm run lint; npm run build                  # production build to
 cd ..\ml;  .\.venv\Scripts\python -m relearn_ml.generate   # regenerate the dataset (deterministic, labels re-verified)
 cd ..\ml;  .\.venv\Scripts\python train.py                 # retrain + threshold + Realistic evaluation
 cd ..\ml;  .\.venv\Scripts\python eval_unseen.py           # leave-one-misconception-out (~1-2 min, separate from the build)
+cd ..\ml;  .\.venv\Scripts\python eval_models.py           # baselines, ablation, calibration (seconds)
 cd ..;     ml\.venv\Scripts\python content\verify_probes.py # run every twin-probe snippet
 ```
 
@@ -321,7 +354,7 @@ All changes are additive; existing fields keep their meaning.
 | Endpoint | Purpose |
 |---|---|
 | `GET /problems` | built-in + custom problems (prompt, starter, one example, `difficulty`, `framing`, `badge`; hidden tests stay server-side) |
-| `POST /diagnose {problem_id, code, learner_id?}` | `{verdict, unknown, unknown_reason, closest_guess, label, confidence, evidence[], test_results, probabilities, ambiguous, runner_up, in_distribution}` |
+| `POST /diagnose {problem_id, code, learner_id?}` | `{verdict, unknown, unknown_reason, closest_guess, label, confidence, why_features[], evidence[], test_results, probabilities, ambiguous, runner_up, in_distribution}` |
 | `POST /explain {problem_id, code, label?}` | `{where_it_went_wrong, why, proposed_fix (only if it passes every test), best_solution}` |
 | `POST /intervene {label, problem_id?, code?}` | the targeted lesson (+ `personalized` fix); for an unknown bug: `{unknown: true, explain}` and no lesson |
 | `GET /probe/{a}/{b}`, `POST /probe/answer` | twin probe question (answers withheld) / which twin the answer reveals |
@@ -355,7 +388,8 @@ Backend on **Render** (`render.yaml`; the build only installs the pinned depende
 
 - **Synthetic training data and no real learners.** The Realistic and unknown-bug sets were written by the same author who wrote the generator; they measure robustness to messier code, not generalisation to real students.
 - **Abstention is imperfect in both directions.** About one in three never-seen kinds of mistake still gets a confident wrong label (mean 0.323 in the leave-one-misconception-out test), and about 7% of known mistakes get a "not sure" (0.069). On the Realistic set the model abstains on 4 of 40 snippets it should have named.
-- **Confidence is not a guarantee.** Calibration was fitted on synthetic out-of-fold data; one Realistic-set miss and one unknown-bug miss are answered above the threshold.
+- **Confidence is not a guarantee.** Calibration was fitted on synthetic out-of-fold data and makes the held-out problems *less* well calibrated; one Realistic-set miss and one unknown-bug miss are answered above the threshold.
+- **The model choice is not decisive.** A logistic regression on the same features is about as accurate; the gains come from the features (and the abstention design), not from LightGBM itself.
 - **Single-label assumption.** Each submission gets one label; real code can contain several bugs at once.
 - **Twin probes are short.** 3 questions per twin pair; a learner can guess, and the probe only chooses which lesson to show (it never changes mastery).
 - **Mastery is BKT-style with hand-set constants** (guess/slip/learn 0.10), not parameters fitted to learner data.
