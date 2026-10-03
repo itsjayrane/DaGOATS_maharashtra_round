@@ -1,0 +1,1187 @@
+[
+ {
+  "id": "sum_to_n",
+  "fn": "sum_to_n",
+  "title": "Sum 1 to n",
+  "prompt": "Return the sum of all integers from 1 up to **and including** `n`.",
+  "params": [
+   "n"
+  ],
+  "starter": "def sum_to_n(n):\n    # your code here\n    pass\n",
+  "tests": [
+   {
+    "args": [
+     1
+    ],
+    "expected": 1
+   },
+   {
+    "args": [
+     5
+    ],
+    "expected": 15
+   },
+   {
+    "args": [
+     10
+    ],
+    "expected": 55
+   },
+   {
+    "args": [
+     3
+    ],
+    "expected": 6
+   }
+  ],
+  "tags": [
+   "M1",
+   "M3",
+   "M4",
+   "M5"
+  ],
+  "param_types": [
+   "int"
+  ],
+  "return_type": "int",
+  "checks": {}
+ },
+ {
+  "id": "one_to_n",
+  "fn": "one_to_n",
+  "title": "List 1..n",
+  "prompt": "Return a list containing 1, 2, ..., n (including `n`).",
+  "params": [
+   "n"
+  ],
+  "starter": "def one_to_n(n):\n    # your code here\n    pass\n",
+  "tests": [
+   {
+    "args": [
+     1
+    ],
+    "expected": [
+     1
+    ]
+   },
+   {
+    "args": [
+     4
+    ],
+    "expected": [
+     1,
+     2,
+     3,
+     4
+    ]
+   },
+   {
+    "args": [
+     6
+    ],
+    "expected": [
+     1,
+     2,
+     3,
+     4,
+     5,
+     6
+    ]
+   }
+  ],
+  "tags": [
+   "M1",
+   "M3",
+   "M4",
+   "M5"
+  ],
+  "param_types": [
+   "int"
+  ],
+  "return_type": "list",
+  "checks": {}
+ },
+ {
+  "id": "multiples",
+  "fn": "multiples",
+  "title": "Multiples up to n",
+  "prompt": "Return a list of the multiples of `k` that are less than or equal to `n`, in order.",
+  "params": [
+   "k",
+   "n"
+  ],
+  "starter": "def multiples(k, n):\n    # your code here\n    pass\n",
+  "tests": [
+   {
+    "args": [
+     3,
+     10
+    ],
+    "expected": [
+     3,
+     6,
+     9
+    ]
+   },
+   {
+    "args": [
+     5,
+     25
+    ],
+    "expected": [
+     5,
+     10,
+     15,
+     20,
+     25
+    ]
+   },
+   {
+    "args": [
+     2,
+     2
+    ],
+    "expected": [
+     2
+    ]
+   },
+   {
+    "args": [
+     4,
+     16
+    ],
+    "expected": [
+     4,
+     8,
+     12,
+     16
+    ]
+   }
+  ],
+  "tags": [
+   "M1",
+   "M3",
+   "M4",
+   "M5"
+  ],
+  "param_types": [
+   "int",
+   "int"
+  ],
+  "return_type": "list",
+  "checks": {}
+ },
+ {
+  "id": "sum_list",
+  "fn": "sum_list",
+  "title": "Sum a list",
+  "prompt": "Return the sum of all numbers in the list `nums` (0 for an empty list). Do not use `sum()`.",
+  "params": [
+   "nums"
+  ],
+  "starter": "def sum_list(nums):\n    # your code here\n    pass\n",
+  "tests": [
+   {
+    "args": [
+     [
+      1,
+      2,
+      3
+     ]
+    ],
+    "expected": 6
+   },
+   {
+    "args": [
+     [
+      5
+     ]
+    ],
+    "expected": 5
+   },
+   {
+    "args": [
+     [
+      4,
+      0,
+      7,
+      1
+     ]
+    ],
+    "expected": 12
+   },
+   {
+    "args": [
+     [
+      10,
+      20
+     ]
+    ],
+    "expected": 30
+   },
+   {
+    "args": [
+     []
+    ],
+    "expected": 0
+   }
+  ],
+  "tags": [
+   "M1",
+   "M2",
+   "M3",
+   "M4",
+   "M5"
+  ],
+  "param_types": [
+   "list"
+  ],
+  "return_type": "int",
+  "checks": {}
+ },
+ {
+  "id": "last_item",
+  "fn": "last_item",
+  "title": "Last item",
+  "prompt": "Return the last element of the non-empty list `items`.",
+  "params": [
+   "items"
+  ],
+  "starter": "def last_item(items):\n    # your code here\n    pass\n",
+  "tests": [
+   {
+    "args": [
+     [
+      1,
+      2,
+      3
+     ]
+    ],
+    "expected": 3
+   },
+   {
+    "args": [
+     [
+      "a",
+      "b"
+     ]
+    ],
+    "expected": "b"
+   },
+   {
+    "args": [
+     [
+      7
+     ]
+    ],
+    "expected": 7
+   }
+  ],
+  "tags": [
+   "M2",
+   "M3"
+  ],
+  "param_types": [
+   "list"
+  ],
+  "return_type": "any",
+  "checks": {}
+ },
+ {
+  "id": "nth_item",
+  "fn": "nth_item",
+  "title": "The n-th item",
+  "prompt": "Return the n-th item of `items`, counting from 1 (so `n=1` is the first item).",
+  "params": [
+   "items",
+   "n"
+  ],
+  "starter": "def nth_item(items, n):\n    # your code here\n    pass\n",
+  "tests": [
+   {
+    "args": [
+     [
+      10,
+      20,
+      30
+     ],
+     1
+    ],
+    "expected": 10
+   },
+   {
+    "args": [
+     [
+      10,
+      20,
+      30
+     ],
+     3
+    ],
+    "expected": 30
+   },
+   {
+    "args": [
+     [
+      "a",
+      "b",
+      "c",
+      "d"
+     ],
+     2
+    ],
+    "expected": "b"
+   }
+  ],
+  "tags": [
+   "M2",
+   "M3"
+  ],
+  "param_types": [
+   "list",
+   "int"
+  ],
+  "return_type": "any",
+  "checks": {}
+ },
+ {
+  "id": "swap_ends",
+  "fn": "swap_ends",
+  "title": "Swap the ends",
+  "prompt": "Return a NEW list where the first and last items of `items` are swapped. Do not change the original list.",
+  "params": [
+   "items"
+  ],
+  "starter": "def swap_ends(items):\n    # your code here\n    pass\n",
+  "tests": [
+   {
+    "args": [
+     [
+      1,
+      2,
+      3
+     ]
+    ],
+    "expected": [
+     3,
+     2,
+     1
+    ]
+   },
+   {
+    "args": [
+     [
+      1,
+      2,
+      3,
+      4
+     ]
+    ],
+    "expected": [
+     4,
+     2,
+     3,
+     1
+    ]
+   },
+   {
+    "args": [
+     [
+      5,
+      6
+     ]
+    ],
+    "expected": [
+     6,
+     5
+    ]
+   }
+  ],
+  "tags": [
+   "M2",
+   "M3",
+   "M8"
+  ],
+  "param_types": [
+   "list"
+  ],
+  "return_type": "list",
+  "checks": {
+   "no_mutate": true
+  }
+ },
+ {
+  "id": "square",
+  "fn": "square",
+  "title": "Square it",
+  "prompt": "Return `n` squared.",
+  "params": [
+   "n"
+  ],
+  "starter": "def square(n):\n    # your code here\n    pass\n",
+  "tests": [
+   {
+    "args": [
+     3
+    ],
+    "expected": 9
+   },
+   {
+    "args": [
+     -4
+    ],
+    "expected": 16
+   },
+   {
+    "args": [
+     0
+    ],
+    "expected": 0
+   }
+  ],
+  "tags": [
+   "M3"
+  ],
+  "param_types": [
+   "int"
+  ],
+  "return_type": "int",
+  "checks": {}
+ },
+ {
+  "id": "is_even",
+  "fn": "is_even",
+  "title": "Is it even?",
+  "prompt": "Return `True` if `n` is even, otherwise `False`.",
+  "params": [
+   "n"
+  ],
+  "starter": "def is_even(n):\n    # your code here\n    pass\n",
+  "tests": [
+   {
+    "args": [
+     4
+    ],
+    "expected": true
+   },
+   {
+    "args": [
+     7
+    ],
+    "expected": false
+   },
+   {
+    "args": [
+     0
+    ],
+    "expected": true
+   }
+  ],
+  "tags": [
+   "M3"
+  ],
+  "param_types": [
+   "int"
+  ],
+  "return_type": "bool",
+  "checks": {}
+ },
+ {
+  "id": "greet",
+  "fn": "greet",
+  "title": "Greeting",
+  "prompt": "Return the string `Hello, <name>!` for the given `name`.",
+  "params": [
+   "name"
+  ],
+  "starter": "def greet(name):\n    # your code here\n    pass\n",
+  "tests": [
+   {
+    "args": [
+     "Ada"
+    ],
+    "expected": "Hello, Ada!"
+   },
+   {
+    "args": [
+     "Sam"
+    ],
+    "expected": "Hello, Sam!"
+   }
+  ],
+  "tags": [
+   "M3"
+  ],
+  "param_types": [
+   "str"
+  ],
+  "return_type": "str",
+  "checks": {}
+ },
+ {
+  "id": "count_evens",
+  "fn": "count_evens",
+  "title": "Count evens",
+  "prompt": "Return how many even numbers are in `nums`.",
+  "params": [
+   "nums"
+  ],
+  "starter": "def count_evens(nums):\n    # your code here\n    pass\n",
+  "tests": [
+   {
+    "args": [
+     [
+      1,
+      2,
+      3,
+      4
+     ]
+    ],
+    "expected": 2
+   },
+   {
+    "args": [
+     [
+      2
+     ]
+    ],
+    "expected": 1
+   },
+   {
+    "args": [
+     [
+      1,
+      3
+     ]
+    ],
+    "expected": 0
+   },
+   {
+    "args": [
+     [
+      2,
+      4,
+      6
+     ]
+    ],
+    "expected": 3
+   },
+   {
+    "args": [
+     []
+    ],
+    "expected": 0
+   }
+  ],
+  "tags": [
+   "M1",
+   "M2",
+   "M3",
+   "M4",
+   "M5"
+  ],
+  "param_types": [
+   "list"
+  ],
+  "return_type": "int",
+  "checks": {}
+ },
+ {
+  "id": "product",
+  "fn": "product",
+  "title": "Product of a list",
+  "prompt": "Return the product of all numbers in `nums` (1 for an empty list).",
+  "params": [
+   "nums"
+  ],
+  "starter": "def product(nums):\n    # your code here\n    pass\n",
+  "tests": [
+   {
+    "args": [
+     [
+      2,
+      3,
+      4
+     ]
+    ],
+    "expected": 24
+   },
+   {
+    "args": [
+     [
+      5
+     ]
+    ],
+    "expected": 5
+   },
+   {
+    "args": [
+     [
+      1,
+      2,
+      3,
+      4
+     ]
+    ],
+    "expected": 24
+   },
+   {
+    "args": [
+     []
+    ],
+    "expected": 1
+   }
+  ],
+  "tags": [
+   "M1",
+   "M2",
+   "M3",
+   "M4",
+   "M5"
+  ],
+  "param_types": [
+   "list"
+  ],
+  "return_type": "int",
+  "checks": {}
+ },
+ {
+  "id": "contains_negative",
+  "fn": "contains_negative",
+  "title": "Any negatives?",
+  "prompt": "Return `True` if `nums` contains at least one negative number, else `False`.",
+  "params": [
+   "nums"
+  ],
+  "starter": "def contains_negative(nums):\n    # your code here\n    pass\n",
+  "tests": [
+   {
+    "args": [
+     [
+      1,
+      -2,
+      3
+     ]
+    ],
+    "expected": true
+   },
+   {
+    "args": [
+     [
+      1,
+      2,
+      3
+     ]
+    ],
+    "expected": false
+   },
+   {
+    "args": [
+     [
+      -1
+     ]
+    ],
+    "expected": true
+   },
+   {
+    "args": [
+     []
+    ],
+    "expected": false
+   },
+   {
+    "args": [
+     [
+      1,
+      2,
+      -3
+     ]
+    ],
+    "expected": true
+   }
+  ],
+  "tags": [
+   "M1",
+   "M2",
+   "M3",
+   "M5"
+  ],
+  "param_types": [
+   "list"
+  ],
+  "return_type": "bool",
+  "checks": {}
+ },
+ {
+  "id": "average",
+  "fn": "average",
+  "title": "Average",
+  "prompt": "Return the average (mean) of the non-empty list `nums`, including any fractional part.",
+  "params": [
+   "nums"
+  ],
+  "starter": "def average(nums):\n    # your code here\n    pass\n",
+  "tests": [
+   {
+    "args": [
+     [
+      1,
+      2
+     ]
+    ],
+    "expected": 1.5
+   },
+   {
+    "args": [
+     [
+      2,
+      4,
+      6
+     ]
+    ],
+    "expected": 4.0
+   },
+   {
+    "args": [
+     [
+      1,
+      2,
+      4
+     ]
+    ],
+    "expected": 2.3333333333333335
+   },
+   {
+    "args": [
+     [
+      3,
+      3,
+      4,
+      4
+     ]
+    ],
+    "expected": 3.5
+   }
+  ],
+  "tags": [
+   "M1",
+   "M3",
+   "M4",
+   "M5",
+   "M6"
+  ],
+  "param_types": [
+   "list"
+  ],
+  "return_type": "float",
+  "checks": {}
+ },
+ {
+  "id": "percentage",
+  "fn": "percentage",
+  "title": "Percentage",
+  "prompt": "Return `part` as a percentage of `whole` (e.g. 1 of 4 is 25.0).",
+  "params": [
+   "part",
+   "whole"
+  ],
+  "starter": "def percentage(part, whole):\n    # your code here\n    pass\n",
+  "tests": [
+   {
+    "args": [
+     1,
+     4
+    ],
+    "expected": 25.0
+   },
+   {
+    "args": [
+     1,
+     3
+    ],
+    "expected": 33.333333333333336
+   },
+   {
+    "args": [
+     3,
+     8
+    ],
+    "expected": 37.5
+   }
+  ],
+  "tags": [
+   "M3",
+   "M6"
+  ],
+  "param_types": [
+   "int",
+   "int"
+  ],
+  "return_type": "float",
+  "checks": {}
+ },
+ {
+  "id": "celsius_to_f",
+  "fn": "celsius_to_f",
+  "title": "C to F",
+  "prompt": "Convert Celsius `c` to Fahrenheit: F = C * 9/5 + 32.",
+  "params": [
+   "c"
+  ],
+  "starter": "def celsius_to_f(c):\n    # your code here\n    pass\n",
+  "tests": [
+   {
+    "args": [
+     100
+    ],
+    "expected": 212.0
+   },
+   {
+    "args": [
+     37
+    ],
+    "expected": 98.6
+   },
+   {
+    "args": [
+     0
+    ],
+    "expected": 32.0
+   },
+   {
+    "args": [
+     -40
+    ],
+    "expected": -40.0
+   }
+  ],
+  "tags": [
+   "M3",
+   "M6"
+  ],
+  "param_types": [
+   "int"
+  ],
+  "return_type": "float",
+  "checks": {}
+ },
+ {
+  "id": "capitalize_first",
+  "fn": "capitalize_first",
+  "title": "Capitalize first letter",
+  "prompt": "Return `s` with its first letter upper-cased (`'hello'` -> `'Hello'`).",
+  "params": [
+   "s"
+  ],
+  "starter": "def capitalize_first(s):\n    # your code here\n    pass\n",
+  "tests": [
+   {
+    "args": [
+     "hello"
+    ],
+    "expected": "Hello"
+   },
+   {
+    "args": [
+     "a"
+    ],
+    "expected": "A"
+   },
+   {
+    "args": [
+     "python"
+    ],
+    "expected": "Python"
+   }
+  ],
+  "tags": [
+   "M3",
+   "M7"
+  ],
+  "param_types": [
+   "str"
+  ],
+  "return_type": "str",
+  "checks": {}
+ },
+ {
+  "id": "replace_at",
+  "fn": "replace_at",
+  "title": "Replace one character",
+  "prompt": "Return a new string equal to `s` but with the character at index `i` replaced by `ch`.",
+  "params": [
+   "s",
+   "i",
+   "ch"
+  ],
+  "starter": "def replace_at(s, i, ch):\n    # your code here\n    pass\n",
+  "tests": [
+   {
+    "args": [
+     "cat",
+     0,
+     "b"
+    ],
+    "expected": "bat"
+   },
+   {
+    "args": [
+     "hello",
+     4,
+     "y"
+    ],
+    "expected": "helly"
+   },
+   {
+    "args": [
+     "dog",
+     1,
+     "u"
+    ],
+    "expected": "dug"
+   }
+  ],
+  "tags": [
+   "M3",
+   "M7"
+  ],
+  "param_types": [
+   "str",
+   "int",
+   "str"
+  ],
+  "return_type": "str",
+  "checks": {}
+ },
+ {
+  "id": "shout",
+  "fn": "shout",
+  "title": "Shout",
+  "prompt": "Return `s` in upper case followed by an exclamation mark (`'hi'` -> `'HI!'`).",
+  "params": [
+   "s"
+  ],
+  "starter": "def shout(s):\n    # your code here\n    pass\n",
+  "tests": [
+   {
+    "args": [
+     "hi"
+    ],
+    "expected": "HI!"
+   },
+   {
+    "args": [
+     "wow"
+    ],
+    "expected": "WOW!"
+   }
+  ],
+  "tags": [
+   "M3",
+   "M7"
+  ],
+  "param_types": [
+   "str"
+  ],
+  "return_type": "str",
+  "checks": {}
+ },
+ {
+  "id": "append_copy",
+  "fn": "append_copy",
+  "title": "Append to a copy",
+  "prompt": "Return a NEW list made of `lst` followed by `x`. The original `lst` must stay unchanged.",
+  "params": [
+   "lst",
+   "x"
+  ],
+  "starter": "def append_copy(lst, x):\n    # your code here\n    pass\n",
+  "tests": [
+   {
+    "args": [
+     [
+      1,
+      2
+     ],
+     3
+    ],
+    "expected": [
+     1,
+     2,
+     3
+    ]
+   },
+   {
+    "args": [
+     [],
+     "a"
+    ],
+    "expected": [
+     "a"
+    ]
+   },
+   {
+    "args": [
+     [
+      9
+     ],
+     9
+    ],
+    "expected": [
+     9,
+     9
+    ]
+   }
+  ],
+  "tags": [
+   "M3",
+   "M8"
+  ],
+  "param_types": [
+   "list",
+   "any"
+  ],
+  "return_type": "list",
+  "checks": {
+   "no_mutate": true
+  }
+ },
+ {
+  "id": "double_all",
+  "fn": "double_all",
+  "title": "Double everything",
+  "prompt": "Return a NEW list with every number in `lst` doubled. The original `lst` must stay unchanged.",
+  "params": [
+   "lst"
+  ],
+  "starter": "def double_all(lst):\n    # your code here\n    pass\n",
+  "tests": [
+   {
+    "args": [
+     [
+      1,
+      2,
+      3
+     ]
+    ],
+    "expected": [
+     2,
+     4,
+     6
+    ]
+   },
+   {
+    "args": [
+     [
+      5
+     ]
+    ],
+    "expected": [
+     10
+    ]
+   },
+   {
+    "args": [
+     [
+      0,
+      -1
+     ]
+    ],
+    "expected": [
+     0,
+     -2
+    ]
+   }
+  ],
+  "tags": [
+   "M1",
+   "M2",
+   "M3",
+   "M8"
+  ],
+  "param_types": [
+   "list"
+  ],
+  "return_type": "list",
+  "checks": {
+   "no_mutate": true
+  }
+ },
+ {
+  "id": "make_grid",
+  "fn": "make_grid",
+  "title": "Make a grid",
+  "prompt": "Return a `rows` x `cols` grid (list of lists) filled with 0. Changing one cell must not change any other cell.",
+  "params": [
+   "rows",
+   "cols"
+  ],
+  "starter": "def make_grid(rows, cols):\n    # your code here\n    pass\n",
+  "tests": [
+   {
+    "args": [
+     2,
+     3
+    ],
+    "expected": [
+     [
+      0,
+      0,
+      0
+     ],
+     [
+      0,
+      0,
+      0
+     ]
+    ]
+   },
+   {
+    "args": [
+     3,
+     1
+    ],
+    "expected": [
+     [
+      0
+     ],
+     [
+      0
+     ],
+     [
+      0
+     ]
+    ]
+   },
+   {
+    "args": [
+     2,
+     2
+    ],
+    "expected": [
+     [
+      0,
+      0
+     ],
+     [
+      0,
+      0
+     ]
+    ]
+   }
+  ],
+  "tags": [
+   "M1",
+   "M3",
+   "M8"
+  ],
+  "param_types": [
+   "int",
+   "int"
+  ],
+  "return_type": "list",
+  "checks": {
+   "independent_rows": true
+  }
+ }
+]

@@ -1,0 +1,8 @@
+ml/.venv/
+__pycache__/
+*.pyc
+node_modules/
+client/dist/
+server/*.db
+ml/artifacts/*.joblib
+.claude/settings.local.json
