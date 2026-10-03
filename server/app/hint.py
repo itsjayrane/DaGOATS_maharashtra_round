@@ -9,6 +9,8 @@ import json
 import logging
 import os
 import re
+import time
+from datetime import datetime, timezone
 
 from .paths import CONTENT  # imported first: puts ml/ on sys.path
 import baseline  # noqa: E402  (ml/baseline.py - the project's Gemini client)
@@ -138,8 +140,8 @@ def llm_hint(prompt):
 
 # ------------------------------------------------------------------ static fallback
 def static_hint(problem, level, label, situation):
-    if situation == "start":
-        return FALLBACK["problems"].get(problem["id"], {}).get("start") or FALLBACK["generic"]["start"]
+    if situation == "start":  # untouched starter template: three levels too (what to produce / which concept / one-line nudge)
+        return (FALLBACK["problems"].get(problem["id"], {}).get("start") or FALLBACK["generic"]["start"])[str(level)]
     if label in FALLBACK["misconceptions"]:  # a recognised bug gets an on-target hint even without the LLM
         return FALLBACK["misconceptions"][label][str(level)]
     return (FALLBACK["problems"].get(problem["id"]) or FALLBACK["generic"])[str(level)]
@@ -183,9 +185,32 @@ def get_hint(problem, code, level, learner_id, run, diagnose=None):
     except NoKey:
         reason = "no_api_key"
     except Reject as e:
-        reason = f"rejected: {e}"
+        reason = f"guardrail_rejected: {e}"
     except Exception as e:  # network error, bad JSON, HTTP error, timeout ...
-        reason = f"llm_error: {type(e).__name__}: {e}"
-    (log.info if reason == "no_api_key" else log.warning)("hint FALLBACK problem=%s level=%d reason=%s learner=%s", problem["id"], level, reason, learner_id or "anon")
+        reason = f"api_error: {type(e).__name__}: {e}"
+    # every fallback is logged (backend log + hint_events table) with why it happened
+    log.warning("hint FALLBACK problem=%s level=%d situation=%s reason=%s learner=%s", problem["id"], level, situation, reason, learner_id or "anon")
     db.log_hint(learner_id, problem["id"], level, "fallback", reason, label, situation)
-    return dict(level=level, hint=static_hint(problem, level, label, situation), source="fallback")
+    return dict(level=level, hint=static_hint(problem, level, label, situation), source="fallback", reason=reason.split(":")[0])
+
+
+# ------------------------------------------------------------------ status (is the LLM actually configured?)
+STARTED = time.time()
+
+
+def status():
+    """Whether AI hints can work right now, and why not. Never includes the key itself."""
+    src = baseline.key_source()
+    base = os.environ.get("GEMINI_API_BASE", baseline.DEFAULT_BASE).rstrip("/")
+    return dict(llm_configured=bool(src), key_source=src,
+                places_checked=["environment variable GEMINI_API_KEY"] + [f.relative_to(baseline.ROOT.parent).as_posix() for f in baseline.env_files()],
+                model=os.environ.get("GEMINI_MODEL") or _MODEL.get(base), backend_started_at=datetime.fromtimestamp(STARTED, timezone.utc).isoformat(),
+                fallback_reasons=db.hint_reasons())
+
+
+def log_startup():
+    s = status()
+    if s["llm_configured"]:
+        log.warning("hint: AI hints ENABLED (GEMINI_API_KEY found in %s)", s["key_source"])
+    else:
+        log.warning("hint: AI hints DISABLED - no GEMINI_API_KEY in %s; the Hint button serves built-in hints", ", ".join(s["places_checked"]))

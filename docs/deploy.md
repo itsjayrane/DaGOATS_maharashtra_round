@@ -9,7 +9,7 @@
 - `/content/*.json` (problems, misconceptions) and `/docs/metrics.*` are read from the repo checkout, so they ship with the service.
 - CORS: `localhost` dev ports and any `https://*.vercel.app` origin are allowed by default. For a custom domain set
   `CORS_ORIGINS=https://your.domain` (comma-separated) in the Render dashboard.
-- **AI hints (optional)**: set `GEMINI_API_KEY` in the Render dashboard (it is `sync: false`, so it is never stored in git). Without it the Hint button works with built-in hints.
+- **AI hints (optional)**: set `GEMINI_API_KEY` in the Render dashboard (it is `sync: false`, so it is never stored in git). Without it the Hint button works with built-in hints; `GET /hint-status` on the deployed service shows whether the key was found, and the service log has one `hint FALLBACK ... reason=...` line per fallback.
 - Learner history uses SQLite at `/tmp/relearn.db` (free plan has no persistent disk), so it resets on redeploy/restart.
   Attach a disk and point `RELEARN_DB` at it, or move to Postgres, for persistence.
 - The code sandbox is a subprocess with a 2 s timeout and restricted builtins - fine for a demo, **not** hardened against a hostile public.

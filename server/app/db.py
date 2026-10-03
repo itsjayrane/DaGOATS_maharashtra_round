@@ -125,3 +125,10 @@ def learner_hints(learner_id, recent=20):
         rows = [dict(ts=r["ts"], problem_id=r["problem_id"], level=r["level"], source=r["source"], reason=r["reason"], misconception=r["misconception"])
                 for r in c.execute("SELECT * FROM hint_events WHERE learner_id=? ORDER BY id DESC LIMIT ?", (lid, recent))]
     return dict(learner_id=lid, total=sum(by_source.values()), by_source=by_source, by_problem=by_problem, recent=rows)
+
+
+def hint_reasons():
+    """Why hints fell back (all learners): counts per reason code (no_api_key / api_error / guardrail_rejected)."""
+    with conn() as c:
+        return {r["code"]: r["n"] for r in c.execute(
+            "SELECT substr(reason, 1, instr(reason || ':', ':') - 1) AS code, COUNT(*) AS n FROM hint_events WHERE source='fallback' GROUP BY code")}

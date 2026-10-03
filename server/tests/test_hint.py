@@ -1,5 +1,5 @@
 """POST /hint: three progressive levels, guardrails on every LLM answer, static fallback, request logging."""
-import json, os, tempfile, threading
+import json, logging, os, tempfile, threading
 from http.server import BaseHTTPRequestHandler, HTTPServer
 
 os.environ["RELEARN_DB"] = os.path.join(tempfile.mkdtemp(), "hint.db")
@@ -55,6 +55,7 @@ def llm(monkeypatch):
     srv = HTTPServer(("127.0.0.1", 0), Mock)
     threading.Thread(target=srv.serve_forever, daemon=True).start()
     Mock.prompts, Mock.keys, Mock.urls, Mock.listings = [], [], [], 0
+    Mock.reply = staticmethod(lambda prompt: ("hint", "Look at how your function ends."))  # no state leaks between tests
     monkeypatch.setenv("GEMINI_API_KEY", "test-key")
     monkeypatch.setenv("GEMINI_API_BASE", f"http://127.0.0.1:{srv.server_port}")
     monkeypatch.setenv("BASELINE_BACKOFF", "0.01")
@@ -90,20 +91,33 @@ def test_three_levels_without_a_key_use_static_hints_for_the_diagnosed_bug(c, no
 
 def test_every_static_hint_obeys_the_rules():
     assert set(hint.FALLBACK["problems"]) == set(PROBLEMS) and len(hint.FALLBACK["misconceptions"]) == 8
-    sets = [(pid, hint.FALLBACK["problems"][pid]) for pid in PROBLEMS] + [(None, v) for v in hint.FALLBACK["misconceptions"].values()]
-    for pid, h in sets:
-        for lvl in ("1", "2", "3") + (("start",) if pid else ()):
-            t = h[lvl]
-            assert 0 < len(t.split()) <= 60, (pid, lvl)
-            assert hint.count_code_lines(t) == 0 if lvl in ("1", "2", "start") else hint.count_code_lines(t) <= 2
-            if pid:
-                assert not hint.leaks_solution(t, PROBLEMS[pid]), (pid, lvl, "static hint leaks the solution")
-                assert not any(f.lower() + "(" in t.lower() for f in hint.forbidden_calls(PROBLEMS[pid])), (pid, lvl)
+    rows = []  # (problem id or None, kind, level, text)
+    for pid, h in hint.FALLBACK["problems"].items():
+        rows += [(pid, kind, lvl, (h[lvl] if kind == "normal" else h["start"][lvl])) for kind in ("normal", "start") for lvl in ("1", "2", "3")]
+    rows += [(None, "misconception", lvl, v[lvl]) for v in hint.FALLBACK["misconceptions"].values() for lvl in ("1", "2", "3")]
+    rows += [(None, "generic-start", lvl, hint.FALLBACK["generic"]["start"][lvl]) for lvl in ("1", "2", "3")]
+    for pid, kind, lvl, t in rows:
+        assert 0 < len(t.split()) <= 60, (pid, kind, lvl)
+        assert hint.count_code_lines(t) == 0 if lvl in ("1", "2") else hint.count_code_lines(t) <= 2, (pid, kind, lvl)
+        if pid:
+            assert not hint.leaks_solution(t, PROBLEMS[pid]), (pid, kind, lvl, "static hint leaks the solution")
+            assert not any(f.lower() + "(" in t.lower() for f in hint.forbidden_calls(PROBLEMS[pid])), (pid, kind, lvl)
+
+
+def test_static_hints_are_distinct_per_level_for_every_problem():
+    """Never the same text twice: 3 levels x (normal, starter) per problem, and 3 levels per misconception, are all different."""
+    for pid, h in hint.FALLBACK["problems"].items():
+        texts = [h["1"], h["2"], h["3"], h["start"]["1"], h["start"]["2"], h["start"]["3"]]
+        assert len(set(texts)) == 6, (pid, "duplicate hint text")
+    for label, v in hint.FALLBACK["misconceptions"].items():
+        assert len({v["1"], v["2"], v["3"]}) == 3, label
+    g = hint.FALLBACK["generic"]
+    assert len({g["1"], g["2"], g["3"], g["start"]["1"], g["start"]["2"], g["start"]["3"]}) == 6
 
 
 def test_starter_template_gets_a_how_to_start_hint(c, nokey):
     h = ask(c, 1, STARTER)
-    assert h["source"] == "fallback" and h["hint"] == hint.FALLBACK["problems"]["sum_list"]["start"] and h["hint"].startswith("Start")
+    assert h["source"] == "fallback" and h["hint"] == hint.FALLBACK["problems"]["sum_list"]["start"]["1"] and h["hint"].startswith("Your function should give back")
 
 
 def test_all_tests_passing_means_no_hint_and_no_llm_call(c, llm):
@@ -219,3 +233,84 @@ def test_every_request_is_logged_with_learner_problem_and_level(c, nokey):
     assert log["by_source"] == {"fallback": 4, "none": 1}
     assert [(e["problem_id"], e["level"]) for e in log["recent"]][::-1] == [("sum_list", 1), ("sum_list", 2), ("sum_list", 3), ("square", 1), ("sum_list", 1)]
     assert c.get("/learner/nobody-at-all/hints").json()["total"] == 0
+
+
+# ------------------------------------------------------------------ the reported bug: same hint three times on starter code
+def test_greeting_starter_gives_three_different_hints(c, nokey):
+    starter = next(p["starter"] for p in c.get("/problems").json() if p["id"] == "greet")
+    hs = [ask(c, lvl, starter, "greet", "greet-bug") for lvl in (1, 2, 3)]
+    texts = [h["hint"] for h in hs]
+    assert len(set(texts)) == 3, texts
+    assert [h["level"] for h in hs] == [1, 2, 3] and all(h["source"] == "fallback" for h in hs)
+    assert texts[0].startswith("Your function should give back the text 'Hello, <name>!'")   # 1 = what to produce
+    assert "f-string" in texts[1] and "return" in texts[1]                                    # 2 = which operation / concept
+    assert texts[2].startswith("Nudge:") and hint.count_code_lines(texts[2]) <= 2             # 3 = a one-line nudge...
+    assert not hint.leaks_solution(texts[2], PROBLEMS["greet"])                               # ...never the full solution
+
+
+def test_starter_hints_respect_the_level_for_every_problem(c, nokey):
+    problems = {p["id"]: p for p in c.get("/problems").json()}
+    for pid, p in problems.items():
+        hs = [ask(c, lvl, p["starter"], pid, f"all-{pid}") for lvl in (1, 2, 3)]
+        texts = [h["hint"] for h in hs]
+        assert len(set(texts)) == 3, (pid, texts)
+        assert all(h["source"] == "fallback" and h["reason"] == "no_api_key" for h in hs), pid
+        assert texts == [hint.FALLBACK["problems"][pid]["start"][str(l)] for l in (1, 2, 3)], pid
+        assert texts[0].startswith("Your function should give back"), pid
+        assert all(len(t.split()) <= 60 for t in texts) and not any(hint.leaks_solution(t, PROBLEMS[pid]) for t in texts), pid
+
+
+def test_wrong_code_hints_are_distinct_for_every_problem(c, nokey):
+    """Code that runs but is wrong, for every problem (never diagnosable as a misconception -> per-problem hints)."""
+    for pid, p in PROBLEMS.items():
+        wrong = f"def {p['fn']}({', '.join(p['params'])}):\n    return None\n"
+        texts = [ask(c, lvl, wrong, pid, f"wrong-{pid}")["hint"] for lvl in (1, 2, 3)]
+        assert len(set(texts)) == 3, (pid, texts)
+
+
+# ------------------------------------------------------------------ why was it a fallback? (reason logged + returned + status)
+def test_every_fallback_logs_its_reason(c, nokey, caplog):
+    with caplog.at_level(logging.WARNING, logger="relearn.hint"):
+        r = ask(c, 1, next(p["starter"] for p in c.get("/problems").json() if p["id"] == "greet"), "greet", "why-1")
+    assert r["source"] == "fallback" and r["reason"] == "no_api_key"
+    assert any("hint FALLBACK" in m and "reason=no_api_key" in m and "situation=start" in m and "problem=greet" in m for m in caplog.messages)
+    assert c.get("/learner/why-1/hints").json()["recent"][0]["reason"] == "no_api_key"
+
+
+def test_reason_codes_for_api_error_and_guardrail(c, llm, caplog):
+    llm.reply = staticmethod(lambda p: ("status", 500))
+    with caplog.at_level(logging.WARNING, logger="relearn.hint"):
+        e = ask(c, 1, PRINT_CODE, learner="why-2")
+        llm.reply = staticmethod(lambda p: ("hint", "x " * 100))
+        g = ask(c, 1, PRINT_CODE, learner="why-3")
+    assert e["reason"] == "api_error" and g["reason"] == "guardrail_rejected"
+    assert any("reason=api_error" in m for m in caplog.messages) and any("reason=guardrail_rejected" in m for m in caplog.messages)
+    reasons = c.get("/hint-status").json()["fallback_reasons"]
+    assert reasons.get("api_error", 0) >= 1 and reasons.get("guardrail_rejected", 0) >= 1
+
+
+def test_hint_status_reports_whether_the_key_is_found(c, nokey, llm, monkeypatch):
+    monkeypatch.delenv("GEMINI_API_KEY")
+    s = c.get("/hint-status").json()
+    assert s["llm_configured"] is False and s["key_source"] is None
+    assert s["places_checked"][0] == "environment variable GEMINI_API_KEY" and s["places_checked"][1:] == []  # RELEARN_NO_DOTENV=1 here
+    assert s["backend_started_at"] and isinstance(s["fallback_reasons"], dict)
+    monkeypatch.setenv("GEMINI_API_KEY", "super-secret-value")
+    s = c.get("/hint-status").json()
+    assert s["llm_configured"] is True and s["key_source"] == "environment variable"
+    assert "super-secret-value" not in json.dumps(s), "the key itself is never exposed"
+
+
+def test_key_in_a_dotenv_file_is_found_without_restarting(c, llm, monkeypatch, tmp_path):
+    import baseline
+    monkeypatch.delenv("GEMINI_API_KEY")
+    monkeypatch.delenv("RELEARN_NO_DOTENV")  # let .env files count
+    monkeypatch.setattr(baseline, "ROOT", tmp_path / "ml")
+    (tmp_path / "ml").mkdir(); (tmp_path / "server").mkdir()
+    before = ask(c, 1, PRINT_CODE, learner="dotenv")
+    assert before["source"] == "fallback" and before["reason"] == "no_api_key" and c.get("/hint-status").json()["llm_configured"] is False
+    (tmp_path / "server" / ".env").write_text("# local secrets\nGEMINI_API_KEY='abc-123'\n", encoding="utf-8")
+    s = c.get("/hint-status").json()
+    assert s["llm_configured"] is True and s["key_source"] == "server/.env" and "server/.env" in s["places_checked"]
+    after = ask(c, 1, PRINT_CODE, learner="dotenv")  # same running backend, no restart
+    assert after["source"] == "llm" and llm.keys[-1] == "abc-123"

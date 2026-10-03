@@ -33,15 +33,37 @@ TWINS = [("M1_RANGE_OFF_BY_ONE", "M2_INDEX_FROM_ONE"), ("M4_ACCUMULATOR_RESET", 
 
 
 # ---------------------------------------------------------------- config / IO
+def env_files():
+    """Files that may hold a GEMINI_API_KEY line. Re-read on every call, so adding a key needs no restart."""
+    if os.environ.get("RELEARN_NO_DOTENV"):
+        return []
+    return [ROOT / ".env", ROOT.parent / ".env", ROOT.parent / "server" / ".env"]
+
+
+def _key_from(f):
+    for line in f.read_text(encoding="utf-8").splitlines():
+        m = re.match(r"\s*(?:export\s+)?GEMINI_API_KEY\s*=\s*(.*)\s*$", line)
+        if m and m.group(1).strip().strip("'\""):
+            return m.group(1).strip().strip("'\"")
+    return None
+
+
 def read_key():
     if os.environ.get("GEMINI_API_KEY"):
         return os.environ["GEMINI_API_KEY"].strip()
-    for f in () if os.environ.get("RELEARN_NO_DOTENV") else (ROOT / ".env", ROOT.parent / ".env"):
-        if f.exists():
-            for line in f.read_text(encoding="utf-8").splitlines():
-                m = re.match(r"\s*(?:export\s+)?GEMINI_API_KEY\s*=\s*(.*)\s*$", line)
-                if m and m.group(1).strip().strip("'\""):
-                    return m.group(1).strip().strip("'\"")
+    for f in env_files():
+        if f.exists() and _key_from(f):
+            return _key_from(f)
+    return None
+
+
+def key_source():
+    """Where the key comes from (never the key itself): 'environment variable', a .env path such as 'ml/.env', or None."""
+    if os.environ.get("GEMINI_API_KEY"):
+        return "environment variable"
+    for f in env_files():
+        if f.exists() and _key_from(f):
+            return f.relative_to(ROOT.parent).as_posix()
     return None
 
 

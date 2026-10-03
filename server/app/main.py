@@ -24,6 +24,7 @@ CLEAR_THRESHOLD = 0.25  # model must give the target misconception < 25% probabi
 async def lifespan(app):
     global SVC
     db.init()
+    hint.log_startup()  # says right at startup whether AI hints are enabled (and where the key was found)
     if MODEL_PATH.exists():
         SVC = DiagnoserService()
     yield
@@ -272,3 +273,9 @@ def hint_endpoint(body: HintIn):
 def learner_hints(learner_id: str):
     """Hint usage log for the Dashboard: totals, per-problem counts and the most recent requests."""
     return db.learner_hints(learner_id)
+
+
+@app.get("/hint-status")
+def hint_status():
+    """Is the LLM configured, where the key was found (never the key), when this backend started, why hints fell back."""
+    return hint.status()
