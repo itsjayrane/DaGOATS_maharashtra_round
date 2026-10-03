@@ -34,6 +34,7 @@ export const api = {
   learner: (id) => req(`/learner/${encodeURIComponent(id)}`),
   metrics: () => req('/metrics'),
   baseline: () => req('/baseline'),
+  hint: (body) => req('/hint', { method: 'POST', body }),
   confusionUrl: () => `${API}/metrics/confusion-matrix`,
 }
 

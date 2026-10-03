@@ -286,7 +286,7 @@ cd ..\ml;  .\.venv\Scripts\python -m relearn_ml.generate   # regenerate the data
 | `VITE_API_URL` | client (`client\.env`) | backend base URL; defaults to `http://localhost:8000` |
 | `CORS_ORIGINS` | server | extra allowed origins, comma-separated (localhost and `*.vercel.app` are always allowed) |
 | `RELEARN_DB` | server | SQLite path (default `server\relearn.db`) |
-| `GEMINI_API_KEY` | `ml\.env` | enables `ml\baseline.py` (optional) |
+| `GEMINI_API_KEY` | `ml/.env` or the environment | enables the AI **Hint** button (`POST /hint`) and `ml/baseline.py`; without it hints fall back to built-in ones. `GEMINI_MODEL` optionally pins the model |
 
 ### Troubleshooting
 
@@ -305,6 +305,8 @@ cd ..\ml;  .\.venv\Scripts\python -m relearn_ml.generate   # regenerate the data
 | `GET /transfer/{M}?learner_id=` | new problems + concept questions (answers withheld) |
 | `POST /reassess {learner_id, misconception, problem_id, code, concept_answer}` | `{resolved, reasons[], message, mastery_after, ...}` |
 | `GET /learner/{id}` | mastery 0..1 per misconception + attempt history |
+| `POST /hint {problem_id, code, hint_level 1-3, learner_id?}` | progressive hint: `{level, hint, source}` (1 = where, 2 = what/why, 3 = small code nudge; max 60 words; guardrails enforced in code; built-in fallback; every request logged) |
+| `GET /learner/{id}/hints` | hint usage log for a learner (totals, per problem, recent) |
 | `GET /metrics`, `GET /metrics/confusion-matrix`, `GET /baseline` | evaluation data for the Eval page |
 
 ## Repo layout
@@ -332,5 +334,6 @@ Backend on **Render** (`render.yaml`; the model is trained during the build), fr
 - **Ambiguous twin cases are flagged** (`ambiguous`, `runner_up`) but there is no follow-up probe question yet.
 - **Mastery is a heuristic**, not a fitted knowledge-tracing model.
 - **Sandbox is demo-grade**: subprocess + 2 s timeout + restricted builtins + AST banlist. No OS-level CPU/memory/filesystem limits - do not expose it to a hostile public.
+- **AI hints are only as good as the LLM** and need `GEMINI_API_KEY`; the guardrails (word limit, no code at levels 1-2, at most 2 code lines at level 3, no leaked reference solution) are enforced in code, but a hint can still be unhelpful. Without a key the Hint button serves built-in hints.
 - **Free-tier hosting**: Render's SQLite is on ephemeral disk (history resets on redeploy) and the service sleeps when idle.
 - **Gemini baseline not yet run** (no API key in the build environment).

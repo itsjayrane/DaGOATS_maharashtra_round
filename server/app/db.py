@@ -28,6 +28,9 @@ def init():
         CREATE TABLE IF NOT EXISTS concept_events(id INTEGER PRIMARY KEY AUTOINCREMENT, ts REAL, learner_id TEXT, problem_id TEXT,
             misconception TEXT, source TEXT, reason TEXT, pool_idx INTEGER);
         CREATE TABLE IF NOT EXISTS concept_state(learner_id TEXT, misconception TEXT, last_idx INTEGER, PRIMARY KEY(learner_id, misconception));
+        CREATE TABLE IF NOT EXISTS hint_events(id INTEGER PRIMARY KEY AUTOINCREMENT, ts REAL, learner_id TEXT, problem_id TEXT, level INTEGER,
+            source TEXT, reason TEXT, misconception TEXT, situation TEXT);
+        CREATE INDEX IF NOT EXISTS ix_hint ON hint_events(learner_id, ts);
         """)
 
 
@@ -104,3 +107,21 @@ def concept_stats(recent=20):
     total = sum(by_source.values())
     fb = by_source.get("fallback_pool", 0)
     return dict(total=total, by_source=by_source, fallback_count=fb, fallback_rate=(fb / total) if total else 0.0, fallback_reasons=reasons, recent_fallbacks=rows)
+
+
+# ---- hint log: one row per hint request (so the Dashboard can show hint usage later)
+def log_hint(learner_id, problem_id, level, source, reason=None, misconception=None, situation=None):
+    with _lock, conn() as c:
+        c.execute("INSERT INTO hint_events(ts, learner_id, problem_id, level, source, reason, misconception, situation) VALUES(?,?,?,?,?,?,?,?)",
+                  (time.time(), learner_id or "anon", problem_id, level, source, reason, misconception, situation))
+
+
+def learner_hints(learner_id, recent=20):
+    lid = learner_id or "anon"
+    with conn() as c:
+        by_problem = {r["problem_id"]: dict(requests=r["n"], max_level=r["mx"]) for r in
+                      c.execute("SELECT problem_id, COUNT(*) n, MAX(level) mx FROM hint_events WHERE learner_id=? AND source != 'none' GROUP BY problem_id", (lid,))}
+        by_source = {r["source"]: r["n"] for r in c.execute("SELECT source, COUNT(*) n FROM hint_events WHERE learner_id=? GROUP BY source", (lid,))}
+        rows = [dict(ts=r["ts"], problem_id=r["problem_id"], level=r["level"], source=r["source"], reason=r["reason"], misconception=r["misconception"])
+                for r in c.execute("SELECT * FROM hint_events WHERE learner_id=? ORDER BY id DESC LIMIT ?", (lid, recent))]
+    return dict(learner_id=lid, total=sum(by_source.values()), by_source=by_source, by_problem=by_problem, recent=rows)

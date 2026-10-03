@@ -3,6 +3,7 @@ import { useSearchParams } from 'react-router-dom'
 import { api, learnerId } from '../api'
 import CodeEditor from '../components/CodeEditor'
 import DiagnosisCard from '../components/DiagnosisCard'
+import HintPanel, { MAX_HINTS } from '../components/HintPanel'
 import InterventionPanel from '../components/InterventionPanel'
 import TransferPanel from '../components/TransferPanel'
 import { Button, Card, ErrorNote, Pill, RichText } from '../components/ui'
@@ -21,6 +22,11 @@ export default function Home() {
   const [proving, setProving] = useState(false)
   const [submitted, setSubmitted] = useState(null) // the exact problem + code that was diagnosed (the editor may change afterwards)
   const [demo, setDemo] = useState(null)
+  const [hints, setHints] = useState([]) // revealed hints, one per level (max 3)
+  const [hintBusy, setHintBusy] = useState(false)
+  const [hintError, setHintError] = useState('')
+  const [hintNote, setHintNote] = useState('')
+  const pidRef = useRef(pid)
   const diagRef = useRef(null)
   const proveRef = useRef(null)
 
@@ -30,14 +36,36 @@ export default function Home() {
       .catch((e) => setError(e.message))
   }, [])
 
+  useEffect(() => { pidRef.current = pid }, [pid])
+
   const problem = problems.find((p) => p.id === pid)
+  const resetHints = () => { setHints([]); setHintError(''); setHintNote('') }
   const reset = () => { setDiag(null); setProving(false); setError('') }
 
   const pick = (id) => {
     const p = problems.find((x) => x.id === id)
-    setPid(id); setCode(p.starter); setDemo(null); reset()
+    setPid(id); setCode(p.starter); setDemo(null); reset(); resetHints()
   }
-  const loadDemo = (d) => { setPid(d.problem); setCode(d.code); setDemo(d); reset() }
+  const loadDemo = (d) => { setPid(d.problem); setCode(d.code); setDemo(d); reset(); resetHints() }
+
+  const askHint = async () => {
+    if (hintBusy || hints.length >= MAX_HINTS || !problem) return
+    const forPid = pid
+    setHintBusy(true); setHintError(''); setHintNote('')
+    try {
+      const res = await api.hint({
+        problem_id: pid, problem_statement: problem.prompt, code, hint_level: hints.length + 1, learner_id: lid,
+        test_results: (diag?.test_results ?? []).map(({ args, expected, got, ok, error }) => ({ args, expected, got, ok, error })), // last results, if any
+      })
+      if (pidRef.current !== forPid) return // the problem changed while we were waiting
+      if (res.source === 'none') setHintNote(res.hint) // all tests pass: nothing to reveal, no level used
+      else setHints((h) => [...h, res])
+    } catch (e) {
+      if (pidRef.current === forPid) setHintError(e.message)
+    } finally {
+      setHintBusy(false)
+    }
+  }
 
   const submit = async () => {
     setBusy(true); setError(''); setProving(false)
@@ -92,8 +120,14 @@ export default function Home() {
         <CodeEditor value={code} onChange={setCode} onSubmit={submit} />
         <div className="mt-4 flex items-center justify-between gap-3">
           <span className="text-xs text-muted">Ctrl/⌘ + Enter submits · learner <code className="font-mono">{lid}</code></span>
-          <Button onClick={submit} disabled={busy || !pid}>{busy ? 'Running…' : 'Submit'}</Button>
+          <div className="flex gap-2">
+            <Button variant="ghost" onClick={askHint} disabled={hintBusy || hints.length >= MAX_HINTS || !pid}>
+              {hintBusy ? 'Thinking…' : hints.length >= MAX_HINTS ? 'No more hints' : hints.length === 0 ? 'Hint' : 'Next hint'}
+            </Button>
+            <Button onClick={submit} disabled={busy || !pid}>{busy ? 'Running…' : 'Submit'}</Button>
+          </div>
         </div>
+        <HintPanel hints={hints} loading={hintBusy} note={hintNote} error={hintError} />
         <div className="mt-3"><ErrorNote error={error} /></div>
       </Card>
 

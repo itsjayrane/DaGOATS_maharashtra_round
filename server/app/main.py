@@ -7,9 +7,9 @@ from typing import Optional, Union
 from fastapi import FastAPI, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import FileResponse
-from pydantic import BaseModel
+from pydantic import BaseModel, Field
 
-from . import concept, db, sandbox
+from . import concept, db, hint, sandbox
 from .diagnoser import DiagnoserService
 from relearn_ml import fixer, references
 from .paths import CONTENT, DOCS, MODEL_PATH
@@ -249,3 +249,26 @@ def baseline():
 def concept_stats():
     """How often concept checks are generated, served from cache, or fall back to the pool (and why)."""
     return db.concept_stats()
+
+
+class HintIn(BaseModel):
+    problem_id: str
+    code: str
+    hint_level: int = Field(ge=1, le=3)  # 1 = where, 2 = what/why, 3 = small code nudge
+    learner_id: Optional[str] = None
+    problem_statement: Optional[str] = None  # accepted for convenience; the server uses its own statement
+    test_results: Optional[list] = None  # accepted but never trusted: the server re-runs the tests on `code`
+
+
+@app.post("/hint")
+def hint_endpoint(body: HintIn):
+    """Progressive hint: {"level": int, "hint": str, "source": "llm"|"fallback"|"none"}."""
+    p = get_problem(body.problem_id)
+    return hint.get_hint(p, body.code, body.hint_level, body.learner_id, sandbox.run,
+                         diagnose=(lambda code, prob, res: SVC.diagnose(code, prob, res)) if SVC else None)
+
+
+@app.get("/learner/{learner_id}/hints")
+def learner_hints(learner_id: str):
+    """Hint usage log for the Dashboard: totals, per-problem counts and the most recent requests."""
+    return db.learner_hints(learner_id)

@@ -45,12 +45,12 @@ def read_key():
     return None
 
 
-def _http(url, key, body=None, retries=5):
+def _http(url, key, body=None, retries=5, timeout=60):
     data = json.dumps(body).encode() if body is not None else None
     for attempt in range(retries + 1):
         req = urllib.request.Request(url, data=data, headers={"Content-Type": "application/json", "x-goog-api-key": key})
         try:
-            with urllib.request.urlopen(req, timeout=60) as r:
+            with urllib.request.urlopen(req, timeout=timeout) as r:
                 return json.loads(r.read())
         except urllib.error.HTTPError as e:
             if e.code in (429, 500, 502, 503, 504) and attempt < retries:
