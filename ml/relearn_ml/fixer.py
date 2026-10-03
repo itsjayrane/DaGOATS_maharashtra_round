@@ -4,9 +4,13 @@ Candidate fixes are small *source-preserving* edits (character-offset replacemen
 formatting, comments and names survive. Every candidate is run against the problem's tests through `run`; the first
 one that passes everything wins. If none does, the caller falls back to the problem's reference solution.
 """
-import ast, difflib, itertools, re
+import ast, difflib, hashlib, itertools, re, time
+from collections import OrderedDict
 
-MAX_ATTEMPTS = 24
+MAX_ATTEMPTS = 24        # candidate programs actually executed
+MAX_CANDIDATES = 40      # candidate edit-combinations considered at all
+TIME_BUDGET_S = 3.0      # total wall time for one search
+_FIX_CACHE = OrderedDict()  # (problem id, label, code hash) -> result
 STR_METHODS = {"upper", "lower", "capitalize", "title", "strip", "lstrip", "rstrip", "replace", "swapcase", "zfill", "center"}
 MUTATORS = {"append", "extend", "insert", "sort", "reverse", "pop", "remove"}
 LOW_PREC = (ast.Add, ast.Sub)
@@ -351,8 +355,21 @@ CANDS = {"M1_RANGE_OFF_BY_ONE": c_m1, "M2_INDEX_FROM_ONE": c_m2, "M3_PRINT_NOT_R
 
 
 # ============================================================ search + helpers
-def find_fix(code, problem, label, run, max_attempts=MAX_ATTEMPTS):
-    """Returns dict(code, rule, passed, total, attempts) for the first candidate that passes every test, else None."""
+def find_fix(code, problem, label, run, max_attempts=MAX_ATTEMPTS, time_budget=TIME_BUDGET_S):
+    """Returns dict(code, rule, passed, total, attempts) for the first candidate that passes every test, else None.
+    Capped at MAX_CANDIDATES combinations, max_attempts executions and `time_budget` seconds; cached per (problem, label, code)."""
+    key = (problem.get("id"), label, hashlib.sha1(code.replace("\r\n", "\n").encode()).hexdigest())
+    if key in _FIX_CACHE:
+        _FIX_CACHE.move_to_end(key)
+        return _FIX_CACHE[key]
+    result = _search(code, problem, label, run, max_attempts, time.monotonic() + time_budget)
+    _FIX_CACHE[key] = result
+    while len(_FIX_CACHE) > 256:
+        _FIX_CACHE.popitem(last=False)
+    return result
+
+
+def _search(code, problem, label, run, max_attempts, deadline):
     try:
         c = Ctx(code, problem["fn"])
     except SyntaxError:
@@ -360,9 +377,11 @@ def find_fix(code, problem, label, run, max_attempts=MAX_ATTEMPTS):
     if c.fn is None or label not in CANDS:
         return None
     cands = CANDS[label](c)
-    combos = [[x] for x in cands] + [list(p) for p in itertools.combinations(cands, 2)]
+    combos = ([[x] for x in cands] + [list(p) for p in itertools.combinations(cands, 2)])[:MAX_CANDIDATES]
     seen, tried = {c.code}, 0
     for combo in combos:
+        if time.monotonic() > deadline:
+            break
         new = apply_edits(c.code, [e for _, es in combo for e in es])
         if new is None or new in seen:
             continue

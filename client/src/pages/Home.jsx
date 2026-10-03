@@ -6,11 +6,13 @@ import DiagnosisCard from '../components/DiagnosisCard'
 import HintPanel, { MAX_HINTS } from '../components/HintPanel'
 import InterventionPanel from '../components/InterventionPanel'
 import TransferPanel from '../components/TransferPanel'
+import { useServerHealth } from '../serverHealth'
 import { Button, Card, ErrorNote, Pill, RichText } from '../components/ui'
 import { DEMOS } from '../labels'
 
 export default function Home() {
   const [lid] = useState(learnerId)
+  const { healthy } = useServerHealth()
   const [params] = useSearchParams()
   const showDemo = params.get('demo') === '1' // demo-bug panel is hidden unless the URL has ?demo=1
   const [problems, setProblems] = useState([])
@@ -31,10 +33,11 @@ export default function Home() {
   const proveRef = useRef(null)
 
   useEffect(() => {
+    if (!healthy) return // wait until the server is awake
     api.problems()
       .then((ps) => { setProblems(ps); const p = ps.find((x) => x.id === 'sum_list') || ps[0]; setPid(p.id); setCode(p.starter) })
       .catch((e) => setError(e.message))
-  }, [])
+  }, [healthy])
 
   useEffect(() => { pidRef.current = pid }, [pid])
 
@@ -121,10 +124,10 @@ export default function Home() {
         <div className="mt-4 flex items-center justify-between gap-3">
           <span className="text-xs text-muted">Ctrl/⌘ + Enter submits · learner <code className="font-mono">{lid}</code></span>
           <div className="flex gap-2">
-            <Button variant="ghost" onClick={askHint} disabled={hintBusy || hints.length >= MAX_HINTS || !pid}>
+            <Button variant="ghost" onClick={askHint} disabled={!healthy || hintBusy || hints.length >= MAX_HINTS || !pid}>
               {hintBusy ? 'Thinking…' : hints.length >= MAX_HINTS ? 'No more hints' : hints.length === 0 ? 'Hint' : 'Next hint'}
             </Button>
-            <Button onClick={submit} disabled={busy || !pid}>{busy ? 'Running…' : 'Submit'}</Button>
+            <Button onClick={submit} disabled={!healthy || busy || !pid}>{!healthy ? 'Waiting for server…' : busy ? 'Running…' : 'Submit'}</Button>
           </div>
         </div>
         <HintPanel hints={hints} loading={hintBusy} note={hintNote} error={hintError} />

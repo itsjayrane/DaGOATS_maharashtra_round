@@ -32,6 +32,8 @@ def init():
             source TEXT, reason TEXT, misconception TEXT, situation TEXT);
         CREATE INDEX IF NOT EXISTS ix_hint ON hint_events(learner_id, ts);
         """)
+    if os.environ.get("RELEARN_SEED_DEMO") == "1":
+        seed_demo()
 
 
 def ensure_learner(c, lid):
@@ -125,3 +127,33 @@ def learner_hints(learner_id, recent=20):
         rows = [dict(ts=r["ts"], problem_id=r["problem_id"], level=r["level"], source=r["source"], reason=r["reason"], misconception=r["misconception"])
                 for r in c.execute("SELECT * FROM hint_events WHERE learner_id=? ORDER BY id DESC LIMIT ?", (lid, recent))]
     return dict(learner_id=lid, total=sum(by_source.values()), by_source=by_source, by_problem=by_problem, recent=rows)
+
+
+# ---- RELEARN_SEED_DEMO=1: a clearly labelled SYNTHETIC learner so the Dashboard / Insights are not empty in a demo
+DEMO_LEARNER = "demo-learner (synthetic)"
+_DEMO = [  # (minutes ago, kind, problem, label, passed, resolved, misconception, mastery_after)
+    (180, "diagnose", "sum_list", "M5_RETURN_IN_LOOP", 0, 0, "M5_RETURN_IN_LOOP", 0.25),
+    (172, "reassess", "product", "M5_RETURN_IN_LOOP", 0, 0, "M5_RETURN_IN_LOOP", 0.21),
+    (165, "reassess", "product", "CORRECT", 1, 1, "M5_RETURN_IN_LOOP", 0.80),
+    (120, "diagnose", "sum_to_n", "M1_RANGE_OFF_BY_ONE", 0, 0, "M1_RANGE_OFF_BY_ONE", 0.25),
+    (110, "diagnose", "one_to_n", "M1_RANGE_OFF_BY_ONE", 0, 0, "M1_RANGE_OFF_BY_ONE", 0.13),
+    (60, "diagnose", "square", "M3_PRINT_NOT_RETURN", 0, 0, "M3_PRINT_NOT_RETURN", 0.25),
+    (30, "diagnose", "average", "M6_FLOAT_DIVISION", 0, 0, "M6_FLOAT_DIVISION", 0.25),
+    (10, "diagnose", "average", "CORRECT", 1, 0, None, None),
+]
+
+
+def seed_demo():
+    """Idempotent: creates the synthetic learner only if it does not exist yet. Every row is marked synthetic."""
+    with _lock, conn() as c:
+        if c.execute("SELECT 1 FROM learners WHERE id=?", (DEMO_LEARNER,)).fetchone():
+            return False
+        ensure_learner(c, DEMO_LEARNER)
+        now = time.time()
+        for mins, kind, pid, label, passed, resolved, misc, after in _DEMO:
+            c.execute("INSERT INTO attempts(learner_id, ts, kind, problem_id, misconception, label, confidence, passed, resolved, mastery_after, code, detail)"
+                      " VALUES(?,?,?,?,?,?,?,?,?,?,?,?)",
+                      (DEMO_LEARNER, now - mins * 60, kind, pid, misc, label, 0.95, passed, resolved, after, "", json.dumps({"synthetic": True})))
+            if misc and after is not None:
+                c.execute("UPDATE mastery SET value=?, resolved=? WHERE learner_id=? AND misconception=?", (after, int(bool(resolved)), DEMO_LEARNER, misc))
+        return True

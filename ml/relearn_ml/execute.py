@@ -10,6 +10,10 @@ STEP_LIMIT = 400_000
 
 class StepLimit(Exception): pass
 
+
+MEMORY_LIMIT = dict(status="memory_limit", tests=[],
+                    error="Your code used too much memory (for example a list that keeps growing forever). Try a smaller approach.")
+
 def static_check(tree):
     for n in ast.walk(tree):
         if isinstance(n, (ast.Import, ast.ImportFrom)): return "imports are not allowed"
@@ -49,6 +53,8 @@ def run_submission(code, problem):
         with contextlib.redirect_stdout(buf):
             sys.settrace(None)
             exec(compile(tree, "<learner>", "exec"), env)
+    except MemoryError:
+        return dict(MEMORY_LIMIT)
     except BaseException as e:
         return dict(status="syntax_error", error=f"{type(e).__name__}: {e}", tests=[])
     fn = env.get(problem["fn"])
@@ -63,6 +69,8 @@ def run_submission(code, problem):
                 res = _call(fn, args)
         except StepLimit:
             rec["exc"] = "Timeout"; out.append(rec); continue
+        except MemoryError:
+            return dict(MEMORY_LIMIT)
         except BaseException as e:
             rec["exc"] = type(e).__name__; rec["msg"] = str(e)[:120]; rec["printed"] = bool(buf.getvalue().strip())
             rec["mutated"] = args != before; out.append(rec); continue

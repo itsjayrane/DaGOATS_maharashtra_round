@@ -2,12 +2,14 @@ import { NavLink, Route, Routes } from 'react-router-dom'
 import Dashboard from './pages/Dashboard'
 import Eval from './pages/Eval'
 import Home from './pages/Home'
+import { ServerBanner, ServerHealthProvider } from './components/ServerHealth'
 
 const link = ({ isActive }) =>
   `rounded-lg px-3 py-1.5 text-sm font-medium transition ${isActive ? 'bg-raised text-ink' : 'text-muted hover:text-ink'}`
 
 export default function App() {
   return (
+    <ServerHealthProvider>
     <div className="min-h-screen">
       <header className="sticky top-0 z-10 border-b border-line bg-bg/90 backdrop-blur">
         <div className="mx-auto flex max-w-5xl items-center justify-between px-4 py-3">
@@ -19,6 +21,7 @@ export default function App() {
           </nav>
         </div>
       </header>
+      <ServerBanner />
       <main className="mx-auto max-w-5xl px-4 py-8">
         <Routes>
           <Route path="/" element={<Home />} />
@@ -28,5 +31,6 @@ export default function App() {
         </Routes>
       </main>
     </div>
+    </ServerHealthProvider>
   )
 }

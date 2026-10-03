@@ -32,6 +32,7 @@ export const api = {
     req(`/transfer/${m}?learner_id=${encodeURIComponent(learnerId)}${exclude ? `&exclude=${exclude}` : ''}`),
   reassess: (body) => req('/reassess', { method: 'POST', body }),
   learner: (id) => req(`/learner/${encodeURIComponent(id)}`),
+  health: () => req('/health'),
   metrics: () => req('/metrics'),
   hint: (body) => req('/hint', { method: 'POST', body }),
   confusionUrl: () => `${API}/metrics/confusion-matrix`,

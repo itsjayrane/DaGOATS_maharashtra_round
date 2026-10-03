@@ -4,12 +4,12 @@ import os
 from contextlib import asynccontextmanager
 from typing import Optional, Union
 
-from fastapi import FastAPI, HTTPException
+from fastapi import FastAPI, HTTPException, Request
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import FileResponse
 from pydantic import BaseModel, Field
 
-from . import concept, db, hint, sandbox
+from . import concept, db, hint, ratelimit, sandbox
 from .diagnoser import DiagnoserService
 from relearn_ml import fixer, references
 from .paths import CONTENT, DOCS, MODEL_PATH
@@ -17,6 +17,7 @@ from .paths import CONTENT, DOCS, MODEL_PATH
 PROBLEMS = {p["id"]: p for p in json.loads((CONTENT / "problems.json").read_text(encoding="utf-8"))}
 MISC = json.loads((CONTENT / "misconceptions.json").read_text(encoding="utf-8"))
 SVC: Optional[DiagnoserService] = None
+MAX_CODE_CHARS = 20000  # longer submissions are rejected with 422
 CLEAR_THRESHOLD = 0.25  # model must give the target misconception < 25% probability to count as "no longer detected"
 
 
@@ -86,12 +87,13 @@ def problems():
 
 class DiagnoseIn(BaseModel):
     problem_id: str
-    code: str
+    code: str = Field(max_length=MAX_CODE_CHARS)
     learner_id: Optional[str] = None  # if given, the attempt is stored and mastery updated
 
 
 @app.post("/diagnose")
-def diagnose(body: DiagnoseIn):
+def diagnose(body: DiagnoseIn, request: Request):
+    ratelimit.check(request, "diagnose", body.learner_id)
     p = get_problem(body.problem_id)
     res = sandbox.run(body.code, p)
     d = svc().diagnose(body.code, p, res)
@@ -113,12 +115,13 @@ def diagnose(body: DiagnoseIn):
 class IntervenIn(BaseModel):
     label: str
     problem_id: Optional[str] = None  # with `code`, the response includes `personalized`: the learner's own code + a verified minimal fix
-    code: Optional[str] = None
+    code: Optional[str] = Field(default=None, max_length=MAX_CODE_CHARS)
     learner_id: Optional[str] = None  # used to rotate fallback concept questions (never the same one twice in a row)
 
 
 @app.post("/intervene")
-def intervene(body: IntervenIn):
+def intervene(body: IntervenIn, request: Request):
+    ratelimit.check(request, "intervene", body.learner_id)
     if body.label.upper() == "CORRECT":
         return dict(label="CORRECT", intervention=None, message="No misconception detected - nothing to remediate.")
     m = full_label(body.label)
@@ -148,7 +151,7 @@ class ReassessIn(BaseModel):
     learner_id: str
     misconception: str
     problem_id: str
-    code: str
+    code: str = Field(max_length=MAX_CODE_CHARS)
     concept_answer: Union[int, str]
     concept_id: Optional[str] = None  # defaults to the first concept question
 
@@ -251,7 +254,7 @@ def concept_stats():
 
 class HintIn(BaseModel):
     problem_id: str
-    code: str
+    code: str = Field(max_length=MAX_CODE_CHARS)
     hint_level: int = Field(ge=1, le=3)  # 1 = where, 2 = what/why, 3 = small code nudge
     learner_id: Optional[str] = None
     problem_statement: Optional[str] = None  # accepted for convenience; the server uses its own statement
@@ -259,8 +262,9 @@ class HintIn(BaseModel):
 
 
 @app.post("/hint")
-def hint_endpoint(body: HintIn):
+def hint_endpoint(body: HintIn, request: Request):
     """Progressive curated hint: {"level": int, "hint": str, "source": "curated"|"none", "kind": "problem"|"misconception"|"none"}."""
+    ratelimit.check(request, "hint", body.learner_id)
     p = get_problem(body.problem_id)
     return hint.get_hint(p, body.code, body.hint_level, body.learner_id, sandbox.run,
                          diagnose=(lambda code, prob, res: SVC.diagnose(code, prob, res)) if SVC else None)
