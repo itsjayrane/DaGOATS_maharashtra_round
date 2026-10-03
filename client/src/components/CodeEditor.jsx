@@ -1,18 +1,24 @@
 import { useEffect, useState } from 'react'
 import Editor from '@monaco-editor/react'
+import { useTheme } from '../theme'
 
 const FALLBACK_AFTER_MS = 5000 // Monaco comes from a CDN; if it has not loaded by then, use a plain textarea
 
 function defineTheme(monaco) {
   monaco.editor.defineTheme('relearn', {
     base: 'vs-dark', inherit: true, rules: [],
-    colors: { 'editor.background': '#0d1320', 'editorLineNumber.foreground': '#4b566b', 'editor.lineHighlightBackground': '#131c2e' },
+    colors: { 'editor.background': '#0d1320', 'editorLineNumber.foreground': '#6b7689', 'editor.lineHighlightBackground': '#131c2e' },
+  })
+  monaco.editor.defineTheme('relearn-light', {
+    base: 'vs', inherit: true, rules: [],
+    colors: { 'editor.background': '#f8fafc', 'editorLineNumber.foreground': '#64748b', 'editor.lineHighlightBackground': '#eef2f7' },
   })
 }
 
 export default function CodeEditor({ value, onChange, height = 280, onSubmit }) {
   const [ready, setReady] = useState(false)
   const [fallback, setFallback] = useState(false)
+  const [theme] = useTheme()
 
   useEffect(() => {
     if (ready) return undefined
@@ -41,7 +47,7 @@ export default function CodeEditor({ value, onChange, height = 280, onSubmit }) 
           }}
           spellCheck={false}
           style={{ height }}
-          className="block w-full resize-y bg-[#0d1320] p-3 font-mono text-[15px] leading-relaxed text-ink outline-none"
+          className="block w-full resize-y bg-code p-3 font-mono text-[15px] leading-relaxed text-ink outline-none"
         />
         <p className="border-t border-line px-3 py-1.5 text-xs text-muted">The full code editor could not load, so this is a simple text box. Your code works the same way.</p>
       </div>
@@ -51,9 +57,10 @@ export default function CodeEditor({ value, onChange, height = 280, onSubmit }) 
   return (
     <div className="overflow-hidden rounded-lg border border-line">
       <Editor
+        wrapperProps={{ 'aria-label': 'Code editor' }}
         height={height}
         language="python"
-        theme="relearn"
+        theme={theme === 'light' ? 'relearn-light' : 'relearn'}
         value={value}
         beforeMount={defineTheme}
         onChange={(v) => onChange(v ?? '')}

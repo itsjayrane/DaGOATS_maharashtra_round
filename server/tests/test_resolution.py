@@ -1,4 +1,8 @@
 """Item 6: resolution v2 - BKT-style P(misconception) + >= 2 different cleared transfer problems."""
+import os, tempfile
+
+os.environ.setdefault("RELEARN_DB", os.path.join(tempfile.mkdtemp(), "own.db"))  # never the dev database
+
 import pytest
 from fastapi.testclient import TestClient
 
@@ -67,3 +71,11 @@ def test_a_new_diagnosis_starts_the_evidence_over(c):
     c.post("/diagnose", json={"problem_id": "product", "code": PRODUCT_BAD, "learner_id": "r4"})
     r = reassess(c, "r4", "count_evens", EVENS_OK)
     assert r["cleared_problems"] == ["count_evens"] and not r["resolved"]
+
+
+def test_a_wrong_concept_answer_does_not_clear_the_problem(c):
+    c.post("/diagnose", json={"problem_id": "sum_list", "code": SUM_M5, "learner_id": "r5"})
+    r = c.post("/reassess", json={"learner_id": "r5", "misconception": "M5", "problem_id": "product", "code": PRODUCT_OK, "concept_answer": 0}).json()
+    assert r["cleared_problems"] == [] and "concept_answer" in r["failed_checks"] and r["evidence_counted"] is False
+    again = c.post("/reassess", json={"learner_id": "r5", "misconception": "M5", "problem_id": "product", "code": PRODUCT_OK, "concept_answer": 0}).json()
+    assert again["p_misconception"] == r["p_misconception"], "a wrong concept answer alone does not move P"

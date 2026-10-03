@@ -4,9 +4,9 @@ os.environ["RELEARN_DB"] = os.path.join(tempfile.mkdtemp(), "test.db")  # before
 
 import pytest
 from fastapi.testclient import TestClient
-from relearn_ml import references
 
 from app.main import app
+from relearn_ml import references  # after app.main: it puts ml/ on sys.path
 
 COUNT_EVENS_OK = references.reference_variants()["count_evens"][0]
 

@@ -41,3 +41,12 @@ def test_no_external_llm_code_in_the_repo():
             if f.suffix in (".py", ".js", ".jsx") and pattern.search(f.read_text(encoding="utf-8", errors="ignore")):
                 offenders.append(str(f.relative_to(ROOT)))
     assert offenders == []
+
+
+def test_every_problem_has_difficulty_and_framing_and_glossary_is_plain():
+    meta = json.loads((CONTENT / "problem_meta.json").read_text(encoding="utf-8"))
+    probs = json.loads((CONTENT / "problems.json").read_text(encoding="utf-8"))
+    for p in probs:
+        assert meta[p["id"]]["difficulty"] in ("easy", "medium", "harder") and 20 < len(meta[p["id"]]["framing"]) < 140, p["id"]
+    terms = json.loads((CONTENT / "glossary.json").read_text(encoding="utf-8"))["terms"]
+    assert len(terms) >= 15 and all(len(v) <= 140 for v in terms.values())

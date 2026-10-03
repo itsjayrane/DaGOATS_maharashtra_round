@@ -35,6 +35,7 @@ export const api = {
   patterns: (id) => req(`/learner/${encodeURIComponent(id)}/patterns`),
   insights: (synthetic) => req(`/insights/common-mistakes?include_synthetic=${!!synthetic}`),
   health: () => req('/health'),
+  glossary: () => req('/glossary'),
   explain: (body) => req('/explain', { method: 'POST', body }),
   createCustom: (body) => req('/custom/problems', { method: 'POST', body }),
   metrics: () => req('/metrics'),

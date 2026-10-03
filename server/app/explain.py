@@ -6,6 +6,7 @@
 """
 import time
 
+from . import paths  # noqa: F401  (puts ml/ on sys.path)
 from relearn_ml import fixer
 from relearn_ml.labels import MISCONCEPTIONS
 from .concept import call_text, fmt

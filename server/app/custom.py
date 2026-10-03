@@ -10,6 +10,7 @@ import time
 
 from fastapi import HTTPException
 
+from . import paths  # noqa: F401  (puts ml/ on sys.path)
 from relearn_ml.execute import _eq
 from . import db
 

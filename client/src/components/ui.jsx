@@ -1,3 +1,7 @@
+import { Fragment } from 'react'
+import { findTerms, useGlossary } from '../glossary'
+import Term from './Term'
+
 export function Card({ title, right, children, className = '' }) {
   return (
     <section className={`rounded-xl border border-line bg-surface p-5 ${className}`}>
@@ -29,18 +33,44 @@ export function Button({ variant = 'primary', className = '', ...p }) {
     primary: 'bg-accent text-bg hover:brightness-110 disabled:opacity-50',
     ghost: 'border border-line text-ink hover:bg-raised disabled:opacity-50',
   }[variant]
-  return <button {...p} className={`rounded-lg px-4 py-2 text-sm font-semibold transition disabled:cursor-not-allowed ${v} ${className}`} />
+  return <button {...p} className={`min-h-[44px] rounded-lg px-4 py-2 text-sm font-semibold transition disabled:cursor-not-allowed ${v} ${className}`} />
 }
 
-// minimal inline renderer: **bold** and `code`
-export function RichText({ text, className = '' }) {
+const MAX_TERMS = 3 // tooltips per block of text: the first use of each glossary word, at most 3
+
+// plain text with the first use of glossary words turned into tooltips (`seen` is shared across one block)
+function Linked({ text, terms, seen }) {
+  const hits = findTerms(text, terms).filter((h) => !seen.has(h.key) && seen.size < MAX_TERMS && seen.add(h.key))
+  if (!hits.length) return text
+  const out = []
+  let at = 0
+  hits.forEach((h, i) => {
+    out.push(<Fragment key={`t${i}`}>{text.slice(at, h.start)}</Fragment>)
+    out.push(<Term key={`g${i}`} def={terms[h.key]}>{text.slice(h.start, h.end)}</Term>)
+    at = h.end
+  })
+  out.push(<Fragment key="end">{text.slice(at)}</Fragment>)
+  return out
+}
+
+// minimal inline renderer: **bold** and `code`, plus glossary tooltips (pass glossary={false} to turn them off)
+export function RichText({ text, className = '', glossary = true }) {
+  const all = useGlossary()
+  const terms = glossary ? all : {}
+  const seen = new Set()
   const parts = String(text).split(/(\*\*[^*]+\*\*|`[^`]+`)/g)
   return (
     <p className={`leading-relaxed ${className}`}>
-      {parts.map((s, i) =>
-        s.startsWith('**') ? <strong key={i} className="font-semibold text-ink">{s.slice(2, -2)}</strong>
-          : s.startsWith('`') ? <code key={i} className="rounded bg-raised px-1.5 py-0.5 font-mono text-[0.85em] text-accent">{s.slice(1, -1)}</code>
-            : <span key={i}>{s}</span>)}
+      {parts.map((s, i) => {
+        if (s.startsWith('**')) return <strong key={i} className="font-semibold text-ink">{s.slice(2, -2)}</strong>
+        if (s.startsWith('`')) {
+          const c = <code className="rounded bg-raised px-1.5 py-0.5 font-mono text-[0.9em] text-accent">{s.slice(1, -1)}</code>
+          const key = Object.keys(terms).find((k) => k === s.slice(1, -1).replace(/\(.*$/, ''))
+          if (key && !seen.has(key) && seen.size < MAX_TERMS) { seen.add(key); return <Term key={i} def={terms[key]}>{c}</Term> }
+          return <Fragment key={i}>{c}</Fragment>
+        }
+        return <Fragment key={i}><Linked text={s} terms={terms} seen={seen} /></Fragment>
+      })}
     </p>
   )
 }
@@ -49,9 +79,9 @@ export function CodeBlock({ code, tone, label }) {
   const ring = tone === 'bad' ? 'border-bad/40' : tone === 'good' ? 'border-good/40' : 'border-line'
   const head = tone === 'bad' ? 'text-bad' : tone === 'good' ? 'text-good' : 'text-muted'
   return (
-    <div className={`min-w-0 overflow-hidden rounded-lg border ${ring} bg-[#0d1320]`}>
+    <div className={`min-w-0 overflow-hidden rounded-lg border ${ring} bg-code`}>
       {label && <div className={`border-b ${ring} px-3 py-1.5 text-xs font-semibold ${head}`}>{label}</div>}
-      <pre className="overflow-x-auto p-3 font-mono text-[13px] leading-relaxed text-ink">{code}</pre>
+      <pre className="overflow-x-auto p-3 font-mono text-[15px] leading-relaxed text-ink">{code}</pre>
     </div>
   )
 }
@@ -87,13 +117,13 @@ export function CodeView({ code, highlight = [], tone = 'bad', label, caption, b
   const head = tone === 'bad' ? 'text-bad' : 'text-good'
   const mark = tone === 'bad' ? 'bg-bad/20 border-bad' : 'bg-good/20 border-good'
   return (
-    <div className={`min-w-0 overflow-hidden rounded-lg border ${ring} bg-[#0d1320]`}>
+    <div className={`min-w-0 overflow-hidden rounded-lg border ${ring} bg-code`}>
       <div className={`flex flex-wrap items-center justify-between gap-2 border-b ${ring} px-3 py-1.5`}>
         <span className={`text-xs font-semibold ${head}`}>{label}</span>
         {badge}
       </div>
       {caption && <div className="border-b border-line px-3 py-1.5 text-xs text-muted">{caption}</div>}
-      <div className="overflow-x-auto py-2 font-mono text-[13px] leading-relaxed text-ink" role="region" aria-label={label}>
+      <div className="overflow-x-auto py-2 font-mono text-[15px] leading-relaxed text-ink" role="region" aria-label={label}>
         <div className="min-w-max">
           {lines.map((l, i) => (
             <div key={i} className={`flex border-l-2 pr-3 ${hl.has(i + 1) ? mark : 'border-transparent'}`} data-hl={hl.has(i + 1) ? 'true' : undefined}>

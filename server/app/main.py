@@ -16,6 +16,8 @@ from .paths import CONTENT, DOCS, MODEL_PATH
 
 PROBLEMS = {p["id"]: p for p in json.loads((CONTENT / "problems.json").read_text(encoding="utf-8"))}
 MISC = json.loads((CONTENT / "misconceptions.json").read_text(encoding="utf-8"))
+META = json.loads((CONTENT / "problem_meta.json").read_text(encoding="utf-8"))  # difficulty + real-life framing per problem
+GLOSSARY = json.loads((CONTENT / "glossary.json").read_text(encoding="utf-8"))["terms"]
 SVC: Optional[DiagnoserService] = None
 MAX_CODE_CHARS = 20000  # longer submissions are rejected with 422
 CLEAR_THRESHOLD = 0.25  # model must give the target misconception < 25% probability to count as "no longer detected"
@@ -71,6 +73,8 @@ def public_problem(p, with_example=True):
     t = p["tests"][0]
     out = dict(id=p["id"], title=p["title"], prompt=p["prompt"], function=p["fn"], params=p["params"], starter=p["starter"],
                misconceptions_possible=p["tags"], n_tests=len(p["tests"]))
+    meta = META.get(p["id"]) or {}
+    out.update(difficulty=meta.get("difficulty"), framing=meta.get("framing"))
     if p.get("custom"):
         out.update(custom=True, badge=custom.BADGE)
     if with_example:
@@ -223,10 +227,12 @@ def reassess(body: ReassessIn):
              detail="Concept question answered correctly." if concept_ok else "Concept question answered incorrectly."),
     ]
     # resolution v2: BKT-style P(misconception) + >= 2 DIFFERENT cleared transfer problems (same problem never counts twice)
-    clean = bool(reasons[0]["passed"] and passed and clear)
+    code_clean = bool(reasons[0]["passed"] and passed and clear)
+    clean = code_clean and concept_ok  # a cleared problem = all 4 per-attempt checks pass
     p_before = 1 - db.mastery_value(body.learner_id, m)
     cleared = db.cleared_problems(body.learner_id, m)
-    counted = not (clean and p["id"] in cleared)
+    # not counted: a problem already cleared, or clean code with a wrong concept answer (no evidence either way)
+    counted = not (clean and p["id"] in cleared) and not (code_clean and not concept_ok)
     p_after = bkt.update(p_before, clean) if counted else bkt.clamp(p_before)
     if clean:
         cleared = cleared | {p["id"]}
@@ -400,3 +406,9 @@ def insights_csv(include_code: bool = False, include_synthetic: bool = False):
 def learner_patterns(learner_id: str):
     """Misconceptions this learner repeats (>= 2 attempts on >= 2 problems), top 3, plus a suggested next problem."""
     return insights.learner_patterns(learner_id, list(PROBLEMS.values()), MISC)
+
+
+@app.get("/glossary")
+def glossary():
+    """Plain-language definitions for the tooltips in the client."""
+    return GLOSSARY

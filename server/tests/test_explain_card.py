@@ -1,4 +1,8 @@
 """Item 5: the 4-section student explanation card (what went wrong -> why -> your code fixed -> best solution)."""
+import os, tempfile
+
+os.environ.setdefault("RELEARN_DB", os.path.join(tempfile.mkdtemp(), "own.db"))  # never the dev database
+
 import re
 
 import pytest

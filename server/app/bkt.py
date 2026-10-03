@@ -1,7 +1,7 @@
 """Resolution v2: a BKT-style (Bayesian Knowledge Tracing) estimate of P(learner still holds a misconception).
 
 Evidence = one transfer attempt on a problem that can reveal the misconception. 'clean' = a new task, every test
-passes and the model does not detect the misconception. mastery = 1 - P.
+passes, the model does not detect the misconception and the concept question is answered correctly. mastery = 1 - P.
 A misconception is RESOLVED only when >= NEEDED_PROBLEMS different transfer problems are cleared AND P < P_RESOLVED.
 """
 P_GUESS = 0.10      # P(clean transfer | still holds the misconception): got it right by luck / an easy case

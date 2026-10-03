@@ -50,15 +50,15 @@ export default function InterventionPanel({ label, problemId, code, learnerId, o
     return () => { live = false }
   }, [label, problemId, code, learnerId])
 
-  if (error) return <Card title="Targeted intervention"><ErrorNote error={error} /></Card>
-  if (!data?.intervention) return <Card title="Targeted intervention"><p className="text-sm text-muted">Building a fix for your code…</p></Card>
+  if (error) return <Card title="Learn the idea"><ErrorNote error={error} /></Card>
+  if (!data?.intervention) return <Card title="Learn the idea"><p className="text-sm text-muted">Building a fix for your code…</p></Card>
   const iv = data.intervention
   const q = iv.predict
   const answered = picked !== null
   const right = picked === q.answer
 
   return (
-    <Card title="Targeted intervention" right={<Pill tone="info">{data.name}</Pill>}>
+    <Card title="Learn the idea" right={<Pill tone="info">{data.name}</Pill>}>
       <h3 className="text-lg font-semibold">{iv.title}</h3>
       <RichText text={iv.explanation} className="mt-2 text-sm text-ink/90" />
 
@@ -68,10 +68,10 @@ export default function InterventionPanel({ label, problemId, code, learnerId, o
         <h4 className="mb-1 text-xs font-semibold uppercase tracking-wide text-muted">Concept example</h4>
         <p className="mb-3 text-xs text-muted">The same idea in a tiny, general example - not your code.</p>
         <div className="grid gap-3 md:grid-cols-2">
-          <CodeBlock code={iv.wrong_code} tone="bad" label="✗ misconception" />
-          <CodeBlock code={iv.right_code} tone="good" label="✓ idea" />
+          <CodeBlock code={iv.wrong_code} tone="bad" label="✗ The mistake" />
+          <CodeBlock code={iv.right_code} tone="good" label="✓ The idea that works" />
         </div>
-        <ol className="mt-3 space-y-1 rounded-lg border border-line bg-[#0d1320] p-3 font-mono text-[12px]">
+        <ol className="mt-3 space-y-1 rounded-lg border border-line bg-code p-3 font-mono text-[12px]">
           {iv.trace.map((s, i) => <li key={i} className="text-ink/90"><span className="mr-2 text-muted">{i + 1}.</span>{s}</li>)}
         </ol>
       </div>
@@ -81,13 +81,13 @@ export default function InterventionPanel({ label, problemId, code, learnerId, o
           <h4 className="text-xs font-semibold uppercase tracking-wide text-muted">Concept check</h4>
           <span className="text-xs text-muted">{data.concept_source === 'fallback_pool' ? 'general practice question' : data.personalized ? 'about your code' : ''}</span>
         </div>
-        <pre className="mb-3 whitespace-pre-wrap font-mono text-[13px] text-ink">{q.question}</pre>
+        <pre className="mb-3 whitespace-pre-wrap font-mono text-[15px] text-ink">{q.question}</pre>
         <div className="grid gap-2 sm:grid-cols-2" role="radiogroup" aria-label="Concept check answers">
           {q.options.map((o, i) => {
             const state = !answered ? 'border-line hover:border-accent' : i === q.answer ? 'border-good bg-good/10' : i === picked ? 'border-bad bg-bad/10' : 'border-line opacity-60'
             return (
               <button key={i} role="radio" aria-checked={picked === i} disabled={answered} onClick={() => setPicked(i)}
-                className={`rounded-lg border px-3 py-2 text-left font-mono text-sm transition ${state}`}>{o}</button>
+                className={`min-h-[44px] rounded-lg border px-3 py-2 text-left font-mono text-sm transition ${state}`}>{o}</button>
             )
           })}
         </div>

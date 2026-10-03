@@ -1,0 +1,24 @@
+{
+  "_about": "Plain-language definitions shown as tooltips (GET /glossary). Keys are matched as whole words, case-insensitive.",
+  "terms": {
+    "function": "A named block of code that does one job. You call it with inputs and it gives back a result.",
+    "parameter": "A name in the function's first line that stands for an input, like nums in def sum_list(nums).",
+    "argument": "The actual value you pass into a function when you call it, like [1, 2, 3].",
+    "return": "Hands a value back to whoever called the function, and ends the function right away.",
+    "print": "Shows a value on the screen. It does not give anything back to the code that called the function.",
+    "None": "Python's 'nothing' value. A function without a return statement gives back None.",
+    "loop": "Code that repeats - for example once for every item in a list.",
+    "range": "range(a, b) produces the whole numbers from a up to, but NOT including, b.",
+    "index": "The position of an item. Python starts counting at 0, so the first item is at index 0.",
+    "list": "An ordered collection of values in square brackets, like [3, 1, 4]. Lists can be changed.",
+    "string": "Text in quotes, like 'hello'. Strings cannot be changed - you make a new one instead.",
+    "variable": "A name that refers to a value, like total = 0.",
+    "accumulator": "A variable that builds up a result step by step in a loop, like a running total.",
+    "immutable": "Cannot be changed after it is made. Strings and numbers are immutable; lists are not.",
+    "copy": "A separate new list with the same items. Changing the copy leaves the original alone.",
+    "exception": "An error that stops your code, like IndexError or TypeError.",
+    "test": "A check that calls your function with one input and compares the answer with the expected one.",
+    "float": "A number with a decimal point, like 2.5.",
+    "integer": "A whole number, like 7 or -3."
+  }
+}

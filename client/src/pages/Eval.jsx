@@ -34,7 +34,7 @@ function Example({ e, kind }) {
       <p className="mt-2 text-sm text-ink/90">{e.why || e.note}</p>
       <details className="mt-2">
         <summary className="cursor-pointer text-xs text-accent">show the code</summary>
-        <pre className="mt-2 overflow-x-auto rounded-lg border border-line bg-[#0d1320] p-3 font-mono text-[12px] leading-relaxed">{e.code}</pre>
+        <pre className="mt-2 overflow-x-auto rounded-lg border border-line bg-code p-3 font-mono text-[12px] leading-relaxed">{e.code}</pre>
       </details>
     </div>
   )
