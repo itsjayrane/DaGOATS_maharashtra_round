@@ -13,3 +13,4 @@ env/
 *.db
 *.sqlite3
 .env
+ml/artifacts/gemini_cache.json

@@ -53,3 +53,9 @@ Classes with support 0 had no sample among the held-out problems (macro-F1 above
 - 4 held-out problems is a small, single split: treat the numbers as indicative, not tight estimates.
 - Held-out problems are written in the same generator style as training ones; real learner code will be messier.
 - Reproduce: `cd ml && .venv/Scripts/python -m relearn_ml.generate && .venv/Scripts/python train.py`.
+
+<!-- baseline:start -->
+## Our model vs Gemini baseline
+
+**Baseline not run.** GEMINI_API_KEY not found (set it in ml/.env or the environment, then run `python baseline.py`).
+<!-- baseline:end -->

@@ -158,3 +158,21 @@ def test_metrics(c):
 def test_confusion_matrix_image(c):
     r = c.get("/metrics/confusion-matrix")
     assert r.status_code == 200 and r.headers["content-type"] == "image/png" and r.content[:4] == bytes([0x89]) + b"PNG"
+
+
+def test_cors_allows_vercel_and_blocks_others(c):
+    ok = c.get("/health", headers={"Origin": "https://relearn-abc123.vercel.app"})
+    assert ok.headers.get("access-control-allow-origin") == "https://relearn-abc123.vercel.app"
+    bad = c.get("/health", headers={"Origin": "https://evil.example.com"})
+    assert "access-control-allow-origin" not in bad.headers
+    sneaky = c.get("/health", headers={"Origin": "https://vercel.app.evil.com"})
+    assert "access-control-allow-origin" not in sneaky.headers
+
+
+def test_baseline_endpoint(c):
+    r = c.get("/baseline").json()
+    assert r["status"] in ("ok", "not_run")
+    if r["status"] == "not_run":
+        assert "reason" in r
+    else:
+        assert {"ours", "gemini", "gemini_model"} <= set(r)

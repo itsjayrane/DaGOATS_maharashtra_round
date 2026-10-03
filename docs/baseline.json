@@ -1,0 +1,4 @@
+{
+ "status": "not_run",
+ "reason": "GEMINI_API_KEY not found (set it in ml/.env or the environment, then run `python baseline.py`)."
+}

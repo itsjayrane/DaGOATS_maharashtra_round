@@ -33,6 +33,7 @@ export const api = {
   reassess: (body) => req('/reassess', { method: 'POST', body }),
   learner: (id) => req(`/learner/${encodeURIComponent(id)}`),
   metrics: () => req('/metrics'),
+  baseline: () => req('/baseline'),
   confusionUrl: () => `${API}/metrics/confusion-matrix`,
 }
 

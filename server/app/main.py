@@ -29,7 +29,12 @@ async def lifespan(app):
 
 
 app = FastAPI(title="Re:Learn API", version="0.1", lifespan=lifespan)
-app.add_middleware(CORSMiddleware, allow_origins=os.environ.get("CORS_ORIGINS", "*").split(","), allow_methods=["*"], allow_headers=["*"])
+# CORS: local dev + any *.vercel.app (production and preview deploys). Add your custom domain via CORS_ORIGINS
+# (comma-separated); CORS_ORIGIN_REGEX overrides the Vercel pattern; CORS_ORIGINS="*" opens the API to everyone.
+DEV_ORIGINS = "http://localhost:5173,http://127.0.0.1:5173,http://localhost:4173,http://127.0.0.1:4173"
+ORIGINS = [o.strip() for o in os.environ.get("CORS_ORIGINS", DEV_ORIGINS).split(",") if o.strip()]
+ORIGIN_REGEX = os.environ.get("CORS_ORIGIN_REGEX", r"https://([a-z0-9-]+\.)*vercel\.app")
+app.add_middleware(CORSMiddleware, allow_origins=ORIGINS, allow_origin_regex=ORIGIN_REGEX, allow_methods=["*"], allow_headers=["*"])
 
 
 def svc():
@@ -213,3 +218,12 @@ def confusion_matrix_png():
     if not f.exists():
         raise HTTPException(404, "confusion_matrix.png missing: run `cd ml && python train.py`")
     return FileResponse(f, media_type="image/png")
+
+
+@app.get("/baseline")
+def baseline():
+    """Zero-shot Gemini comparison written by ml/baseline.py; {"status": "not_run"} when it was not run."""
+    f = DOCS / "baseline.json"
+    if not f.exists():
+        return dict(status="not_run", reason="Baseline has not been run (see ml/baseline.py).")
+    return json.loads(f.read_text(encoding="utf-8"))

@@ -1,14 +1,48 @@
 import { useEffect, useState } from 'react'
 import { api } from '../api'
-import { Card, ErrorNote } from '../components/ui'
+import { Card, ErrorNote, Pill } from '../components/ui'
 import { short } from '../labels'
 
 const f = (x) => (typeof x === 'number' ? x.toFixed(3) : '-')
 
+function BaselineCard({ b }) {
+  if (!b) return <Card title="Our model vs Gemini baseline"><p className="text-sm text-muted">Loading…</p></Card>
+  if (b.status !== 'ok') {
+    return (
+      <Card title="Our model vs Gemini baseline" right={<Pill tone="mute">baseline not run</Pill>}>
+        <p className="text-sm text-ink/90">Baseline not run.</p>
+        <p className="mt-1 text-sm text-muted">{b.reason} Add <code className="font-mono text-accent">GEMINI_API_KEY</code> to <code className="font-mono">ml/.env</code> and run <code className="font-mono">python baseline.py</code>.</p>
+      </Card>
+    )
+  }
+  const rows = [['Accuracy', b.ours.accuracy, b.gemini.accuracy], ['Macro-F1', b.ours.macro_f1, b.gemini.macro_f1],
+    ...Object.keys(b.ours.twin_exact).map((k) => [`${k.replace('_', ' vs ')} exact (n=${b.ours.twin_exact[k].n})`, b.ours.twin_exact[k].exact, b.gemini.twin_exact[k]?.exact])]
+  return (
+    <Card title="Our model vs Gemini baseline" right={<Pill tone="info">{b.gemini_model}</Pill>}>
+      <p className="mb-3 text-xs text-muted">
+        Same held-out problems, {b.n_unique} unique snippets. Gemini: {b.protocol}. {b.invalid_responses} invalid responses counted as wrong.
+        Our model also sees test-execution features Gemini does not.
+      </p>
+      <table className="w-full text-left text-sm">
+        <thead className="text-xs text-muted"><tr><th className="py-1">Metric</th><th>Our model</th><th>Gemini (zero-shot)</th></tr></thead>
+        <tbody>
+          {rows.map(([n, a, g]) => (
+            <tr key={n} className="border-t border-line"><td className="py-2">{n}</td><td className="tabular-nums">{f(a)}</td><td className="tabular-nums">{f(g)}</td></tr>
+          ))}
+        </tbody>
+      </table>
+    </Card>
+  )
+}
+
 export default function Eval() {
   const [m, setM] = useState(null)
+  const [base, setBase] = useState(null)
   const [error, setError] = useState('')
-  useEffect(() => { api.metrics().then(setM).catch((e) => setError(e.message)) }, [])
+  useEffect(() => {
+    api.metrics().then(setM).catch((e) => setError(e.message))
+    api.baseline().then(setBase).catch(() => setBase({ status: 'not_run', reason: 'Could not load the baseline file.' }))
+  }, [])
 
   if (error) return <ErrorNote error={error} />
   if (!m) return <p className="text-sm text-muted">Loading…</p>
@@ -62,6 +96,8 @@ export default function Eval() {
           </table>
         </Card>
       </div>
+
+      <BaselineCard b={base} />
 
       <Card title="Per-class report">
         <div className="overflow-x-auto">
