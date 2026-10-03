@@ -10,7 +10,7 @@ ROOT = SERVER.parent
 
 
 def run_py(code, env=None):
-    e = {k: v for k, v in os.environ.items() if not k.startswith("GEMINI")}
+    e = {k: v for k, v in os.environ.items() if not k.startswith(("GEMINI", "LLM_"))}
     e.update(env or {})
     return subprocess.run([sys.executable, "-c", code], cwd=SERVER, env=e, capture_output=True, text=True, timeout=120)
 
@@ -56,7 +56,7 @@ def test_startup_needs_no_api_key_or_gemini_variable():
     assert r.returncode == 0, r.stderr[-2000:]
     assert "'model_loaded': True" in r.stdout
     src = "\n".join(p.read_text(encoding="utf-8") for p in (SERVER / "app").glob("*.py"))
-    assert "GEMINI" not in src and "API_KEY" not in src
+    assert "GEMINI" not in src  # the optional drafting LLM (LLM_*) is never needed to start - see the run above
 
 
 def test_env_file_loader_parses_and_never_overrides(tmp_path, monkeypatch):

@@ -11,7 +11,7 @@ import time
 
 from fastapi import HTTPException, Request
 
-PER_MINUTE = {"hint": 10, "diagnose": 30, "intervene": 30, "custom": 5}
+PER_MINUTE = {"hint": 10, "diagnose": 30, "intervene": 30, "custom": 5, "draft": 5, "practice": 5, "solution": 20}
 _buckets = {}  # key -> [tokens, last_refill_monotonic]
 _lock = threading.Lock()
 

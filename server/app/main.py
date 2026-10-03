@@ -2,7 +2,7 @@
 import json
 import os
 from contextlib import asynccontextmanager
-from typing import Optional, Union
+from typing import Literal, Optional, Union
 
 from fastapi import FastAPI, HTTPException, Request
 from fastapi.middleware.cors import CORSMiddleware
@@ -14,7 +14,7 @@ from . import artifacts, envfile
 ENV_LOADED = envfile.load()  # server/.env if present (gitignored); never overrides real environment variables
 artifacts.check()  # before anything reads content/ or ml/artifacts: one clear error listing every missing file
 
-from . import bkt, concept, custom, db, explain, hint, insights, ratelimit, sandbox
+from . import bkt, concept, custom, db, draft, explain, hint, insights, ratelimit, sandbox
 from .diagnoser import DiagnoserService
 from relearn_ml import fixer, references
 from .paths import CONTENT, DOCS
@@ -75,14 +75,22 @@ def refs_for(p):
     return [p["reference"]] if p.get("custom") else references.reference_variants()[p["id"]]
 
 
+def shown_reference(p):
+    """The reference to show in explanations - None for AI-drafted questions: their solution stays hidden until the
+    learner asks for it (GET /custom/problems/{id}/solution) or passes every test."""
+    return None if p.get("source") == "ai_draft" else refs_for(p)[0]
+
+
 def public_problem(p, with_example=True):
     t = p["tests"][0]
     out = dict(id=p["id"], title=p["title"], prompt=p["prompt"], function=p["fn"], params=p["params"], starter=p["starter"],
                misconceptions_possible=p["tags"], n_tests=len(p["tests"]))
     meta = META.get(p["id"]) or {}
     out.update(difficulty=meta.get("difficulty"), framing=meta.get("framing"))
-    if p.get("custom"):
-        out.update(custom=True, badge=custom.BADGE)
+    if p.get("custom"):  # never the reference solution
+        out.update(custom=True, badge=custom.badge(p), source=p.get("source", "teacher"))
+        if p.get("assumptions"):
+            out["assumptions"] = p["assumptions"]
     if with_example:
         out["example"] = dict(args=t["args"], expected=t["expected"])
     return out
@@ -154,7 +162,7 @@ def intervene(body: IntervenIn, request: Request):
             guess = (d.get("closest_guess") or {}).get("label")
             return dict(label=d["label"], unknown=True, unknown_reason=d["unknown_reason"], closest_guess=d["closest_guess"],
                         intervention=None, personalized=None,
-                        explain=explain.explain(p, body.code, sandbox.run, [guess] if guess else None, refs_for(p)[0]))
+                        explain=explain.explain(p, body.code, sandbox.run, [guess] if guess else None, shown_reference(p)))
     if body.label.upper() == "CORRECT":
         return dict(label="CORRECT", intervention=None, message="No misconception detected - nothing to remediate.")
     m = full_label(body.label)
@@ -164,6 +172,8 @@ def intervene(body: IntervenIn, request: Request):
         p = get_problem(body.problem_id)
         # minimal fix of THEIR code, verified in the sandbox against the problem's tests; falls back to the reference solution
         out["personalized"] = fixer.personalize(body.code, p, m, sandbox.run, refs_for(p))
+        if p.get("source") == "ai_draft" and out["personalized"].get("source") != "auto_fix":
+            out["personalized"] = None  # would reveal the hidden solution
         # problem-specific concept check built from the problem, the learner's code and the misconception (pool fallback, logged)
         q, src = concept.for_learner(p, body.code, m, sandbox.run, body.learner_id)
         out["intervention"] = {**c["intervention"], "predict": q}
@@ -358,7 +368,8 @@ def explain_endpoint(body: ExplainIn, request: Request):
         d = SVC.diagnose(body.code, p, sandbox.run(body.code, p), strict=bool(p.get("custom")))
         order = [x for x in (d.get("label"), (d.get("closest_guess") or {}).get("label")) if x]
         named = d["label"] if d.get("verdict") == "misconception" else None
-    out = explain.explain(p, body.code, sandbox.run, order, refs_for(p)[0])
+    out = explain.explain(p, body.code, sandbox.run, order, shown_reference(p))
+    out["solution_hidden"] = shown_reference(p) is None
     out["why"] = None if out["all_tests_pass"] else explain.why(named, p, {k: v["name"] for k, v in MISC.items()})
     return out
 
@@ -373,6 +384,7 @@ class CustomProblemIn(BaseModel):
     function_name: str = Field(max_length=41)
     reference_solution: str = Field(max_length=MAX_CODE_CHARS)
     tests: Optional[list[CustomTest]] = None
+    source: Literal["teacher", "ai_draft"] = "teacher"  # "ai_draft" when the form was filled from POST /custom/draft
 
 
 @app.post("/custom/problems")
@@ -380,7 +392,7 @@ def create_custom_problem(body: CustomProblemIn, request: Request):
     """A teacher adds a problem (no AI): the reference runs in the sandbox; missing expected values come from its output."""
     ratelimit.check(request, "custom")
     tests = [t.model_dump(exclude_unset=True) for t in (body.tests or [])]
-    p = custom.build(body.statement, body.function_name, body.reference_solution, tests, sandbox.run)
+    p = custom.build(body.statement, body.function_name, body.reference_solution, tests, sandbox.run, source=body.source)
     custom.save(p)
     return dict(public_problem(p), tests=[dict(input=t["args"], expected=t["expected"]) for t in p["tests"]],
                 param_types=p["param_types"], return_type=p["return_type"], checks=p["checks"])
@@ -455,3 +467,49 @@ def probe_answer(body: ProbeAnswerIn):
     right = next(x["text"] for x in p["options"] if not x["implies"])
     return dict(probe_id=p["id"], correct=correct, implies=o["implies"], suggested_label=suggested, answer=right,
                 explanation=p["explanation"], names={l: MISC[l]["name"] for l in o["implies"]})
+
+
+# ---------------------------------------------------------------- practise your own question (optional, LLM drafts only)
+class DraftIn(BaseModel):
+    statement: str = Field(max_length=2000)
+
+
+class PracticeIn(BaseModel):
+    statement: str = Field(max_length=2000)
+    learner_id: Optional[str] = None
+
+
+@app.get("/custom/draft/status")
+def draft_status():
+    """Whether the optional drafting LLM is configured (LLM_BASE_URL + LLM_MODEL + LLM_API_KEY). Never returns the key."""
+    return draft.status()
+
+
+@app.post("/custom/draft")
+def draft_problem(body: DraftIn, request: Request):
+    """Teacher review flow: an LLM drafts, the sandbox computes the expected values; nothing is saved."""
+    ratelimit.check(request, "draft")
+    p, info = draft.generate(body.statement, sandbox.run)
+    return dict(statement=p["prompt"], function_name=p["fn"], reference_solution=p["reference"], assumptions=info["assumptions"],
+                tests=[dict(input=t["args"], expected=t["expected"]) for t in p["tests"]], attempts=info["attempts"])
+
+
+@app.post("/custom/practice")
+def practise_own_question(body: PracticeIn, request: Request):
+    """A learner's own question -> a saved, sandbox-checked problem. The reference solution is NOT returned."""
+    ratelimit.check(request, "practice", body.learner_id)
+    p, info = draft.generate(body.statement, sandbox.run)
+    custom.save(p)
+    return dict(public_problem(p), statement=p["prompt"], assumptions=info["assumptions"], attempts=info["attempts"])
+
+
+@app.get("/custom/problems/{problem_id}/solution")
+def custom_solution(problem_id: str, request: Request, learner_id: Optional[str] = None):
+    """Reveal the verified reference solution of a custom problem (logged as solution_revealed)."""
+    ratelimit.check(request, "solution", learner_id)
+    p = get_problem(problem_id)
+    if not p.get("custom"):
+        raise HTTPException(404, "Solutions are only available for custom problems.")
+    db.log_solution(learner_id, p["id"])
+    return dict(problem_id=p["id"], reference_solution=p["reference"], note=draft.approach_note(p["reference"], len(p["tests"])),
+                verified=dict(passed=len(p["tests"]), total=len(p["tests"])))

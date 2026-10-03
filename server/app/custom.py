@@ -15,6 +15,8 @@ from relearn_ml.execute import _eq
 from . import db
 
 BADGE = "custom — teacher-written"
+BADGE_AI = "your question — AI-drafted, checked by running"
+SOURCES = ("teacher", "ai_draft")
 MIN_TESTS = 4
 
 
@@ -36,7 +38,11 @@ def _reject(msg):
     raise HTTPException(422, msg)
 
 
-def build(statement, function_name, reference_solution, tests, run):
+def badge(p):
+    return BADGE_AI if p.get("source") == "ai_draft" else BADGE
+
+
+def build(statement, function_name, reference_solution, tests, run, source="teacher"):
     """Validated problem dict (not yet stored). `run(code, problem)` executes in the sandbox."""
     statement = (statement or "").strip()
     if len(statement) < 10:
@@ -88,7 +94,8 @@ def build(statement, function_name, reference_solution, tests, run):
     return dict(id=pid, fn=function_name, title=title, prompt=statement, params=params,
                 starter=f"def {function_name}({', '.join(params)}):\n    # your code here\n    pass\n",
                 tests=[dict(args=t["args"], expected=t["expected"]) for t in norm], tags=[], param_types=ptypes,
-                return_type=rtype, checks=checks, custom=True, reference=reference_solution.rstrip() + "\n")
+                return_type=rtype, checks=checks, custom=True, reference=reference_solution.rstrip() + "\n",
+                source=source if source in SOURCES else "teacher")
 
 
 def save(problem):

@@ -35,6 +35,8 @@ def init():
         CREATE TABLE IF NOT EXISTS transfer_evidence(id INTEGER PRIMARY KEY AUTOINCREMENT, ts REAL, learner_id TEXT, misconception TEXT,
             problem_id TEXT, clean INTEGER, counted INTEGER, p_before REAL, p_after REAL);
         CREATE INDEX IF NOT EXISTS ix_evidence ON transfer_evidence(learner_id, misconception, ts);
+        CREATE TABLE IF NOT EXISTS solution_events(id INTEGER PRIMARY KEY AUTOINCREMENT, ts REAL, learner_id TEXT, problem_id TEXT,
+            event TEXT);
         CREATE TABLE IF NOT EXISTS probe_events(id INTEGER PRIMARY KEY AUTOINCREMENT, ts REAL, learner_id TEXT, problem_id TEXT,
             probe_id TEXT, choice INTEGER, correct INTEGER, implies TEXT);
         """)
@@ -88,6 +90,16 @@ def add_evidence(lid, misconception, problem_id, clean, counted, p_before, p_aft
     with _lock, conn() as c:
         c.execute("INSERT INTO transfer_evidence(ts, learner_id, misconception, problem_id, clean, counted, p_before, p_after) VALUES(?,?,?,?,?,?,?,?)",
                   (time.time(), lid, misconception, problem_id, int(clean), int(counted), p_before, p_after))
+
+
+def log_solution(lid, problem_id, event="solution_revealed"):
+    with _lock, conn() as c:
+        c.execute("INSERT INTO solution_events(ts, learner_id, problem_id, event) VALUES(?,?,?,?)", (time.time(), lid, problem_id, event))
+
+
+def solution_events(problem_id):
+    with conn() as c:
+        return [dict(r) for r in c.execute("SELECT * FROM solution_events WHERE problem_id=? ORDER BY id", (problem_id,))]
 
 
 def probes_seen(lid):
