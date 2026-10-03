@@ -1,0 +1,131 @@
+{
+ "M1_RANGE_OFF_BY_ONE": {
+  "name": "range() stops before its end value",
+  "summary": "You may believe range(a, b) includes b (or that range(len(x) - 1) is needed to reach the last item).",
+  "intervention": {
+   "title": "range(a, b) stops BEFORE b",
+   "explanation": "`range(1, 5)` produces 1, 2, 3, 4. The stop value is **excluded**. To include `n`, the stop must be `n + 1`. For indices of a list, `range(len(x))` already covers every index (0 .. len-1), so no `- 1` is needed.",
+   "wrong_code": "total = 0\nfor i in range(1, n):   # misses n\n    total += i",
+   "right_code": "total = 0\nfor i in range(1, n + 1):  # includes n\n    total += i",
+   "trace": ["n = 3", "range(1, 3) -> 1, 2   (3 is never visited)", "range(1, 3 + 1) -> 1, 2, 3"],
+   "predict": {"question": "What does list(range(2, 6)) give?", "options": ["[2, 3, 4, 5, 6]", "[2, 3, 4, 5]", "[3, 4, 5, 6]", "[2, 3, 4]"], "answer": 1,
+               "explanation": "Starts at 2, stops before 6."}
+  },
+  "concept_questions": [
+   {"id": "M1-c1", "q": "You want i to take the values 3, 4, 5, 6 (including 6). Which loop header is right?", "options": ["for i in range(3, 6):", "for i in range(3, 7):", "for i in range(4, 7):", "for i in range(3, 5):"], "answer": 1},
+   {"id": "M1-c2", "q": "nums has 4 items. Which indices does `for i in range(len(nums) - 1)` visit?", "options": ["0, 1, 2, 3", "0, 1, 2", "1, 2, 3", "1, 2, 3, 4"], "answer": 1}
+  ]
+ },
+ "M2_INDEX_FROM_ONE": {
+  "name": "List indexes start at 0",
+  "summary": "You may believe the first item is at index 1 and the last at index len(x).",
+  "intervention": {
+   "title": "The first item is items[0]",
+   "explanation": "Python counts positions from **0**. A list with 3 items has valid indexes 0, 1, 2. `items[len(items)]` is one past the end and raises `IndexError`; the last item is `items[len(items) - 1]` or `items[-1]`. If a task counts from 1 (\"the 2nd item\"), subtract 1.",
+   "wrong_code": "items = ['a', 'b', 'c']\nfirst = items[1]            # actually 'b'\nlast = items[len(items)]    # IndexError",
+   "right_code": "items = ['a', 'b', 'c']\nfirst = items[0]\nlast = items[len(items) - 1]   # or items[-1]",
+   "trace": ["index:  0    1    2", "item:  'a'  'b'  'c'", "len(items) = 3, but the largest valid index is 2"],
+   "predict": {"question": "items = ['x', 'y', 'z'].  What is items[1]?", "options": ["'x'", "'y'", "'z'", "IndexError"], "answer": 1, "explanation": "Index 0 is 'x', so index 1 is 'y'."}
+  },
+  "concept_questions": [
+   {"id": "M2-c1", "q": "items = ['a', 'b', 'c']. Which expression gives 'c'?", "options": ["items[3]", "items[2]", "items[len(items)]", "items[1]"], "answer": 1},
+   {"id": "M2-c2", "q": "What does `[4, 5, 6][len([4, 5, 6])]` do?", "options": ["returns 6", "returns 4", "raises IndexError", "returns None"], "answer": 2}
+  ]
+ },
+ "M3_PRINT_NOT_RETURN": {
+  "name": "print() shows a value, return hands it back",
+  "summary": "You may believe printing a result is the same as returning it from the function.",
+  "intervention": {
+   "title": "print shows it; return gives it to the caller",
+   "explanation": "`print` only displays text on the screen. A function with no `return` gives back `None`, so `y = f(4)` stores `None` and the caller can't use the result. Use `return` to hand the value back (you can still print it separately).",
+   "wrong_code": "def double(x):\n    print(x * 2)\n\ny = double(4)   # y is None",
+   "right_code": "def double(x):\n    return x * 2\n\ny = double(4)   # y is 8",
+   "trace": ["double(4) prints 8 on screen", "...but the function's result is None", "y = None, so y + 1 raises TypeError"],
+   "predict": {"question": "def f(x): print(x + 1)\n\ny = f(1)\nWhat is y?", "options": ["2", "None", "1", "an error"], "answer": 1, "explanation": "No return statement, so f returns None."}
+  },
+  "concept_questions": [
+   {"id": "M3-c1", "q": "def f(x): print(x * 2)\n\ny = f(4)\nWhat value is stored in y?", "options": ["8", "None", "4", "it raises an error"], "answer": 1},
+   {"id": "M3-c2", "q": "A test calls `square(3) + 1` and expects 10. Which definition makes that work?", "options": ["def square(n): print(n * n)", "def square(n): return n * n", "def square(n): n * n", "def square(n): print(n); return"], "answer": 1}
+  ]
+ },
+ "M4_ACCUMULATOR_RESET": {
+  "name": "The accumulator must be created BEFORE the loop",
+  "summary": "You may be setting the running total back to its start value on every pass through the loop.",
+  "intervention": {
+   "title": "Initialise once, outside the loop",
+   "explanation": "Every statement inside a loop body runs on every iteration. If `total = 0` is inside the loop, the total is wiped each time, so you only keep the last item's contribution. Put the initial value **before** the loop and only update it inside.",
+   "wrong_code": "for x in nums:\n    total = 0      # reset every time!\n    total += x\nreturn total       # only the last x",
+   "right_code": "total = 0          # once, before the loop\nfor x in nums:\n    total += x\nreturn total",
+   "trace": ["nums = [1, 2, 3]", "x=1: total=0 -> 1", "x=2: total=0 -> 2   (the 1 is lost)", "x=3: total=0 -> 3   -> returns 3, not 6"],
+   "predict": {"question": "for x in [1, 2, 3]:\n    total = 0\n    total += x\nWhat is total afterwards?", "options": ["6", "3", "1", "0"], "answer": 1, "explanation": "total is reset each pass, so only the last x (3) remains."}
+  },
+  "concept_questions": [
+   {"id": "M4-c1", "q": "for x in [2, 4, 6]:\n    count = 0\n    count += 1\nWhat is count after the loop?", "options": ["3", "1", "0", "12"], "answer": 1},
+   {"id": "M4-c2", "q": "Where should `result = 1` go in a function that multiplies all items of a list?", "options": ["inside the loop, first line", "before the loop", "after the loop", "it doesn't matter"], "answer": 1}
+  ]
+ },
+ "M5_RETURN_IN_LOOP": {
+  "name": "return ends the function immediately",
+  "summary": "You may expect a return inside a loop to 'just finish this iteration' - it exits the whole function on the first pass.",
+  "intervention": {
+   "title": "return leaves the function, not just the loop pass",
+   "explanation": "The moment `return` runs, the function ends. A `return` indented inside a loop therefore runs on the **first** iteration and the rest of the items are never looked at. To combine all items, return **after** the loop. (Early return is only right when the first match settles the answer, e.g. 'is there any negative?': return True inside an `if`, and return False only after the loop.)",
+   "wrong_code": "total = 0\nfor x in nums:\n    total += x\n    return total   # exits after the 1st item",
+   "right_code": "total = 0\nfor x in nums:\n    total += x\nreturn total       # after the loop",
+   "trace": ["nums = [1, 2, 3]", "x=1: total=1 -> return 1   (function ends)", "2 and 3 are never visited"],
+   "predict": {"question": "def f():\n    for x in [5, 6, 7]:\n        return x\nWhat does f() return?", "options": ["7", "5", "[5, 6, 7]", "None"], "answer": 1, "explanation": "return exits on the first iteration."}
+  },
+  "concept_questions": [
+   {"id": "M5-c1", "q": "def f(nums):\n    t = 0\n    for n in nums:\n        t += n\n        return t\n\nWhat is f([4, 5, 6])?", "options": ["15", "4", "6", "None"], "answer": 1},
+   {"id": "M5-c2", "q": "To check 'does the list contain a negative?', where does `return False` belong?", "options": ["inside the loop, in an else branch", "after the loop", "as the first line", "inside the if, next to return True"], "answer": 1}
+  ]
+ },
+ "M6_FLOAT_DIVISION": {
+  "name": "/ gives a decimal, // chops it off",
+  "summary": "You may be using // (or int()) where you need the exact decimal result of a division.",
+  "intervention": {
+   "title": "Use / for the exact quotient",
+   "explanation": "In Python 3, `/` always gives a float (`7 / 2 = 3.5`). `//` is **floor division**: it drops the fractional part (`7 // 2 = 3`). Averages, percentages and unit conversions need `/`. Beware `9 // 5` is `1`, not `1.8`.",
+   "wrong_code": "avg = total // len(nums)     # 7 // 2 -> 3\nf = c * (9 // 5) + 32        # 9 // 5 -> 1",
+   "right_code": "avg = total / len(nums)      # 7 / 2 -> 3.5\nf = c * 9 / 5 + 32",
+   "trace": ["7 / 2  = 3.5", "7 // 2 = 3", "9 // 5 = 1   (so c * (9 // 5) is just c)"],
+   "predict": {"question": "What is 7 // 2 ?", "options": ["3.5", "3", "4", "3.0"], "answer": 1, "explanation": "Floor division discards the .5."}
+  },
+  "concept_questions": [
+   {"id": "M6-c1", "q": "In Python 3, what are `7 // 2` and `7 / 2`?", "options": ["3 and 3.5", "3.5 and 3", "3 and 3", "4 and 3.5"], "answer": 0},
+   {"id": "M6-c2", "q": "What does `1 // 4 * 100` evaluate to?", "options": ["25", "25.0", "0", "0.25"], "answer": 2}
+  ]
+ },
+ "M7_STRING_MUTABLE": {
+  "name": "Strings are immutable",
+  "summary": "You may believe string methods or item assignment change the string in place.",
+  "intervention": {
+   "title": "Strings can't be changed - build a new one",
+   "explanation": "A string never changes after it is created. `s[0] = 'X'` raises `TypeError`, and methods like `s.upper()` **return a new string** (the original `s` is untouched). Capture the result: `s = s.upper()`, or slice and concatenate to make a modified copy.",
+   "wrong_code": "s = 'cat'\ns[0] = 'b'      # TypeError\ns.upper()       # result thrown away; s is still 'cat'",
+   "right_code": "s = 'cat'\ns = 'b' + s[1:]     # new string 'bat'\ns = s.upper()       # keep the returned value",
+   "trace": ["s = 'hi'", "s.upper() -> 'HI'  (a new string, discarded)", "print(s) -> hi"],
+   "predict": {"question": "s = 'hi'\ns.upper()\nprint(s)\nWhat is printed?", "options": ["HI", "hi", "Hi", "an error"], "answer": 1, "explanation": "upper() returned 'HI' but nothing stored it."}
+  },
+  "concept_questions": [
+   {"id": "M7-c1", "q": "s = 'cat'\ns[0] = 'b'\nWhat happens?", "options": ["s becomes 'bat'", "TypeError", "s stays 'cat' silently", "IndexError"], "answer": 1},
+   {"id": "M7-c2", "q": "word = 'ok'\nword.upper()\nprint(word)\nWhat is printed?", "options": ["OK", "ok", "None", "an error"], "answer": 1}
+  ]
+ },
+ "M8_LIST_ALIASING": {
+  "name": "b = a does not copy a list",
+  "summary": "You may believe assigning a list to another name (or multiplying a list of lists) creates independent copies.",
+  "intervention": {
+   "title": "Assignment shares the list; copy to separate",
+   "explanation": "`b = a` makes both names point at the **same** list, so changing it through `b` changes `a`. To get an independent list use `a[:]`, `list(a)` or `a.copy()`. The same trap hides in `[[0] * 3] * 2`: both rows are the same inner list - build rows in a loop or comprehension instead.",
+   "wrong_code": "a = [1, 2]\nb = a\nb.append(3)\nprint(a)      # [1, 2, 3]",
+   "right_code": "a = [1, 2]\nb = a[:]      # real copy\nb.append(3)\nprint(a)      # [1, 2]",
+   "trace": ["a -> [1, 2]", "b = a   -> a and b both point to [1, 2]", "b.append(3) changes that one shared list"],
+   "predict": {"question": "a = [1, 2]\nb = a\nb.append(3)\nprint(a)\nWhat is printed?", "options": ["[1, 2]", "[1, 2, 3]", "[3]", "an error"], "answer": 1, "explanation": "a and b are the same list."}
+  },
+  "concept_questions": [
+   {"id": "M8-c1", "q": "a = [1, 2]\nb = a\nb.append(3)\nprint(a)", "options": ["[1, 2]", "[1, 2, 3]", "[3]", "an error"], "answer": 1},
+   {"id": "M8-c2", "q": "g = [[0] * 2] * 2\ng[0][0] = 9\nprint(g)", "options": ["[[9, 0], [0, 0]]", "[[9, 0], [9, 0]]", "[[9, 9], [0, 0]]", "[[0, 0], [0, 0]]"], "answer": 1}
+  ]
+ }
+}

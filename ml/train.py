@@ -137,6 +137,15 @@ def main():
           "- Reproduce: `cd ml && .venv/Scripts/python -m relearn_ml.generate && .venv/Scripts/python train.py`."]
     (DOCS / "metrics.md").write_text("\n".join(L) + "\n", encoding="utf-8")
 
+    (DOCS / "metrics.json").write_text(json.dumps(dict(
+        model="LightGBM multiclass, temperature-calibrated", feature_set=best, temperature=float(T),
+        data="synthetic (template-generated, execution-verified labels)", holdout_problems=HOLDOUT,
+        n_train=len(tr), n_holdout=len(te), cv_macro_f1_train_problems=cv,
+        holdout=dict(accuracy=float(acc), macro_f1=float(mf1), per_problem_accuracy=per_prob,
+                     per_class={l: dict(precision=rep[l]["precision"], recall=rep[l]["recall"], f1=rep[l]["f1-score"], support=int(rep[l]["support"])) for l in LABELS},
+                     twin_pairs={f"{a.split('_')[0]}_{b.split('_')[0]}": t for (a, b), t in twin.items()}),
+        caveat="Held-out score is optimistic: samples are variants of a few dozen templates. See docs/metrics.md."), indent=1), encoding="utf-8")
+
     # --- save models ---
     joblib.dump(dict(model=model, labels=LABELS, holdout=HOLDOUT, config=best), ART / "diagnoser_holdout.joblib")
     final = fit(rows, CONFIGS[best]); final.T = T

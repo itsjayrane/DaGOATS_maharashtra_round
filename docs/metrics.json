@@ -1,0 +1,103 @@
+{
+ "model": "LightGBM multiclass, temperature-calibrated",
+ "feature_set": "AST + execution + task flags",
+ "temperature": 1.65,
+ "data": "synthetic (template-generated, execution-verified labels)",
+ "holdout_problems": [
+  "sum_list",
+  "average",
+  "shout",
+  "double_all"
+ ],
+ "n_train": 2292,
+ "n_holdout": 672,
+ "cv_macro_f1_train_problems": {
+  "AST + execution + task flags": 0.9190013367228297,
+  "TF-IDF + AST + execution + task flags": 0.7580964444061689
+ },
+ "holdout": {
+  "accuracy": 1.0,
+  "macro_f1": 1.0,
+  "per_problem_accuracy": {
+   "sum_list": 1.0,
+   "average": 1.0,
+   "shout": 1.0,
+   "double_all": 1.0
+  },
+  "per_class": {
+   "CORRECT": {
+    "precision": 1.0,
+    "recall": 1.0,
+    "f1": 1.0,
+    "support": 196
+   },
+   "M1_RANGE_OFF_BY_ONE": {
+    "precision": 1.0,
+    "recall": 1.0,
+    "f1": 1.0,
+    "support": 84
+   },
+   "M2_INDEX_FROM_ONE": {
+    "precision": 1.0,
+    "recall": 1.0,
+    "f1": 1.0,
+    "support": 70
+   },
+   "M3_PRINT_NOT_RETURN": {
+    "precision": 1.0,
+    "recall": 1.0,
+    "f1": 1.0,
+    "support": 84
+   },
+   "M4_ACCUMULATOR_RESET": {
+    "precision": 1.0,
+    "recall": 1.0,
+    "f1": 1.0,
+    "support": 56
+   },
+   "M5_RETURN_IN_LOOP": {
+    "precision": 1.0,
+    "recall": 1.0,
+    "f1": 1.0,
+    "support": 56
+   },
+   "M6_FLOAT_DIVISION": {
+    "precision": 1.0,
+    "recall": 1.0,
+    "f1": 1.0,
+    "support": 56
+   },
+   "M7_STRING_MUTABLE": {
+    "precision": 1.0,
+    "recall": 1.0,
+    "f1": 1.0,
+    "support": 28
+   },
+   "M8_LIST_ALIASING": {
+    "precision": 1.0,
+    "recall": 1.0,
+    "f1": 1.0,
+    "support": 42
+   }
+  },
+  "twin_pairs": {
+   "M1_M2": {
+    "n": 154,
+    "n_a": 84,
+    "n_b": 70,
+    "exact": 1.0,
+    "in_pair": 1.0,
+    "swapped": 0.0
+   },
+   "M4_M5": {
+    "n": 112,
+    "n_a": 56,
+    "n_b": 56,
+    "exact": 1.0,
+    "in_pair": 1.0,
+    "swapped": 0.0
+   }
+  }
+ },
+ "caveat": "Held-out score is optimistic: samples are variants of a few dozen templates. See docs/metrics.md."
+}

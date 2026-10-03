@@ -6,3 +6,10 @@ client/dist/
 server/*.db
 ml/artifacts/*.joblib
 .claude/settings.local.json
+.venv/
+venv/
+env/
+.pytest_cache/
+*.db
+*.sqlite3
+.env
