@@ -202,7 +202,8 @@ export default function Home() {
             <Button onClick={submit} disabled={!healthy || busy || !pid}>{!healthy ? 'Waiting for server…' : busy ? 'Checking…' : 'Check my code'}</Button>
           </div>
         </div>
-        <HintPanel hints={hints} loading={hintBusy} note={hintNote} error={hintError} />
+        <HintPanel hints={hints} loading={hintBusy} note={hintNote} error={hintError} submitted={submitted?.pid === pid}
+          onShowSolution={passedHere ? undefined : () => setSolStage((s) => (s === 'hidden' ? 'ask' : s))} />
         <SolutionPanel key={`${pid}:${passedHere ? 'compare' : 'reveal'}`} problemId={pid} learnerId={lid} compare={passedHere}
           stage={passedHere ? 'open' : solStage} onHint={() => { setSolStage('hidden'); askHint() }} onShow={() => setSolStage('open')} />
         <div className="mt-3"><ErrorNote error={error} /></div>

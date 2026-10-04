@@ -256,6 +256,10 @@ Teachers get the same drafting on `/teach` ("Just type your question"): the draf
 
 **Off by default.** With `LLM_*` unset nothing changes: no new UI, `/health` and every other response are identical.
 
+## Problem-specific hints
+
+"Get a hint" gives three levels for every problem: **1 what** (the goal with a real example from the tests, e.g. "For [2, 9, 7, 9], the answer is 7."), **2 how** (the concrete approach, e.g. "set() to drop repeated values and sorting") and **3 a nudge** (one first line, e.g. "Start with: distinct = sorted(set(nums))") - never the full solution. Built-in problems use the curated `content/hints.json`; custom and own-question problems get hints stored with the problem: written by the optional LLM from the verified solution and one sandbox-computed example when `LLM_*` is set, kept only if they pass guardrails (each <= 35 words, no code in hints 1-2, at most one code line in hint 3, no solution lines, all different, not generic, a real example in hint 1; one regeneration), otherwise generated from the verified solution's syntax tree ([`server/app/hintgen.py`](server/app/hintgen.py)). Hints react to the learner's current code: unless it is still the starter, the server re-runs the tests and puts the first failing test in front, in bold ("Right now sum_list([1, 2, 3]) gives 0 but should give 6."), and a confidently diagnosed misconception switches to that misconception's hint. `POST /hint` returns `{level, hint, prefix, source, kind}`.
+
 ## Show solution (every problem)
 
 Every problem - built-in or "Practise your own question" - has a **Show solution** button next to "Get a hint". The first click asks "Try a hint first?" ([Get a hint] [Show it anyway]); after all tests pass the solution appears automatically under "Compare with our solution". Revealing is logged (`solution_revealed`) and never changes mastery.

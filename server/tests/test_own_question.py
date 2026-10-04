@@ -161,7 +161,8 @@ def test_fenced_and_chatty_json_is_parsed():
 def test_bad_json_then_good_takes_two_attempts(c, llm):
     fake = llm('{"function_name": "second_largest", "reference_solution": "def f(:", ', draft_json())
     r = c.post("/custom/draft", json={"statement": QUESTION})
-    assert r.status_code == 200 and r.json()["attempts"] == 2 and len(fake.calls) == 2
+    drafts = [x for x in fake.calls if x["payload"]["messages"][0]["content"].startswith("You turn")]  # hint calls follow
+    assert r.status_code == 200 and r.json()["attempts"] == 2 and len(drafts) == 2
     repair = fake.calls[1]["payload"]["messages"][-1]["content"]
     assert repair.startswith("The grader rejected this draft:") and repair.endswith("reply with only the corrected JSON object.")
     body = r.json()

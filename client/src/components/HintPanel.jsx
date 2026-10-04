@@ -1,10 +1,10 @@
-import { ErrorNote, Pill, RichText } from './ui'
+import { Button, ErrorNote, Pill, RichText } from './ui'
 
 export const MAX_HINTS = 3
 
 
 // Hints revealed so far (one per level), a loading line while the next one is on its way, and notes/errors.
-export default function HintPanel({ hints, loading, note, error }) {
+export default function HintPanel({ hints, loading, note, error, submitted = false, onShowSolution }) {
   if (!hints.length && !loading && !note && !error) return null
   return (
     <div className="mt-4 space-y-3 rounded-lg border border-line bg-raised p-4" role="region" aria-label="Hints" aria-live="polite" data-testid="hint-panel">
@@ -13,13 +13,21 @@ export default function HintPanel({ hints, loading, note, error }) {
           <div className="mb-1 flex items-center gap-2">
             <Pill tone="info">Hint {h.level}/{MAX_HINTS}</Pill>
           </div>
+          {h.prefix && <p className="mb-1 text-sm font-semibold text-ink" data-testid="hint-prefix">{h.prefix}</p>}
           <RichText text={h.hint} className="text-sm text-ink/90" />
         </div>
       ))}
       {loading && <p className="text-sm text-muted" data-testid="hint-loading">Thinking of hint {hints.length + 1}/{MAX_HINTS}…</p>}
       {note && <p className="text-sm text-good" data-testid="hint-note">{note}</p>}
       <ErrorNote error={error} />
-      {hints.length >= MAX_HINTS && <p className="text-xs text-muted">That's all three hints. Still stuck? Submit your code to get a diagnosis and a targeted lesson.</p>}
+      {hints.length >= MAX_HINTS && (submitted && onShowSolution ? (
+        <div className="flex flex-wrap items-center gap-2">
+          <p className="text-xs text-muted">That's all three hints. Still stuck?</p>
+          <Button variant="ghost" onClick={onShowSolution}>Show solution</Button>
+        </div>
+      ) : (
+        <p className="text-xs text-muted">That's all three hints. Still stuck? Submit your code to get a diagnosis and a targeted lesson.</p>
+      ))}
     </div>
   )
 }

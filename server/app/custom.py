@@ -103,6 +103,12 @@ def save(problem):
         c.execute("INSERT INTO custom_problems(id, created, problem) VALUES(?,?,?)", (problem["id"], time.time(), json.dumps(problem)))
 
 
+def update(problem):
+    """Rewrite a stored custom problem (e.g. to add backfilled hints)."""
+    with db._lock, db.conn() as c:
+        c.execute("UPDATE custom_problems SET problem=? WHERE id=?", (json.dumps(problem), problem["id"]))
+
+
 def get(pid):
     with db.conn() as c:
         r = c.execute("SELECT problem FROM custom_problems WHERE id=?", (pid,)).fetchone()

@@ -51,6 +51,7 @@ export default function Teach() {
     try {
       body = {
         statement, function_name: fn.trim(), reference_solution: ref, source: drafted ? 'ai_draft' : 'teacher',
+        ...(drafted?.hints ? { hints: drafted.hints } : {}), // checked again by the server; replaced if they fail the guardrails
         tests: tests.filter((t) => t.input.trim()).map((t, i) => {
           try {
             const out = { input: parseInputs(t.input) }

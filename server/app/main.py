@@ -1,6 +1,7 @@
 """Re:Learn API.  Run:  cd server && ../ml/.venv/Scripts/python -m uvicorn app.main:app --reload --port 8000"""
 import json
 import os
+import time
 from contextlib import asynccontextmanager
 from typing import Literal, Optional, Union
 
@@ -14,7 +15,7 @@ from . import artifacts, envfile
 ENV_LOADED = envfile.load()  # server/.env if present (gitignored); never overrides real environment variables
 artifacts.check()  # before anything reads content/ or ml/artifacts: one clear error listing every missing file
 
-from . import bkt, concept, custom, db, draft, explain, hint, insights, ratelimit, sandbox, solution
+from . import bkt, concept, custom, db, draft, explain, hint, hintgen, insights, ratelimit, sandbox, solution
 from .diagnoser import DiagnoserService
 from relearn_ml import fixer, references
 from .paths import CONTENT, DOCS
@@ -385,6 +386,7 @@ class CustomProblemIn(BaseModel):
     reference_solution: str = Field(max_length=MAX_CODE_CHARS)
     tests: Optional[list[CustomTest]] = None
     source: Literal["teacher", "ai_draft"] = "teacher"  # "ai_draft" when the form was filled from POST /custom/draft
+    hints: Optional[list[str]] = None  # 3 hints (e.g. from POST /custom/draft); kept only if they pass the guardrails
 
 
 @app.post("/custom/problems")
@@ -393,6 +395,13 @@ def create_custom_problem(body: CustomProblemIn, request: Request):
     ratelimit.check(request, "custom")
     tests = [t.model_dump(exclude_unset=True) for t in (body.tests or [])]
     p = custom.build(body.statement, body.function_name, body.reference_solution, tests, sandbox.run, source=body.source)
+    p["hints"] = hintgen.deterministic(p, p["reference"])
+    if body.hints:
+        try:
+            h = hintgen.validate(body.hints, p, p["reference"])
+            p["hints"] = {"1": h[0], "2": h[1], "3": h[2], "source": "ai" if body.source == "ai_draft" else "teacher"}
+        except ValueError:
+            pass  # keep the problem-specific deterministic hints
     custom.save(p)
     return dict(public_problem(p), tests=[dict(input=t["args"], expected=t["expected"]) for t in p["tests"]],
                 param_types=p["param_types"], return_type=p["return_type"], checks=p["checks"])
@@ -470,6 +479,13 @@ def probe_answer(body: ProbeAnswerIn):
 
 
 # ---------------------------------------------------------------- practise your own question (optional, LLM drafts only)
+HINTS_MAX_S = 8.0  # AI hints share the request's draft budget so the whole call stays inside Vercel's proxy limit
+
+
+def hints_budget(t0):
+    return max(0.0, min(HINTS_MAX_S, draft.BUDGET_S - (time.monotonic() - t0) - 1.0))
+
+
 class DraftIn(BaseModel):
     statement: str = Field(max_length=2000)
 
@@ -489,16 +505,21 @@ def draft_status():
 def draft_problem(body: DraftIn, request: Request):
     """Teacher review flow: an LLM drafts, the sandbox computes the expected values; nothing is saved."""
     ratelimit.check(request, "draft")
+    t0 = time.monotonic()
     p, info = draft.generate(body.statement, sandbox.run)
+    hints = hintgen.for_problem(p, p["reference"], budget_s=hints_budget(t0))
     return dict(statement=p["prompt"], function_name=p["fn"], reference_solution=p["reference"], assumptions=info["assumptions"],
-                tests=[dict(input=t["args"], expected=t["expected"]) for t in p["tests"]], attempts=info["attempts"])
+                tests=[dict(input=t["args"], expected=t["expected"]) for t in p["tests"]], attempts=info["attempts"],
+                hints=[hints["1"], hints["2"], hints["3"]], hints_source=hints["source"])
 
 
 @app.post("/custom/practice")
 def practise_own_question(body: PracticeIn, request: Request):
     """A learner's own question -> a saved, sandbox-checked problem. The reference solution is NOT returned."""
     ratelimit.check(request, "practice", body.learner_id)
+    t0 = time.monotonic()
     p, info = draft.generate(body.statement, sandbox.run)
+    p["hints"] = hintgen.for_problem(p, p["reference"], budget_s=hints_budget(t0))  # stored with the problem, not returned
     custom.save(p)
     return dict(public_problem(p), statement=p["prompt"], assumptions=info["assumptions"], attempts=info["attempts"])
 
