@@ -12,7 +12,7 @@ Built for **Bit N Build 2026 - AI/ML track**. Domain: introductory Python progra
 
 ## Contents
 
-1. [Problem](#problem) · 2. [Our approach](#our-approach) · 3. [Architecture](#architecture) · 4. [Misconception taxonomy and twin pairs](#misconception-taxonomy-and-twin-pairs) · 5. [Knowing when not to answer](#knowing-when-not-to-answer) · 6. [How reassessment works](#how-reassessment-works) · 7. [Model and metrics](#model-and-metrics) · 8. [For teachers](#for-teachers) · [Practise your own question](#practise-your-own-question-optional-ai-drafting) · 9. [Screenshots](#screenshots) · 10. [Setup on Windows](#setup-on-windows) · 11. [API](#api) · 12. [Repo layout](#repo-layout) · 13. [Deployment](#deployment) · 14. [Limitations](#limitations-read-this)
+1. [Problem](#problem) · 2. [Our approach](#our-approach) · 3. [Architecture](#architecture) · 4. [Misconception taxonomy and twin pairs](#misconception-taxonomy-and-twin-pairs) · 5. [Knowing when not to answer](#knowing-when-not-to-answer) · 6. [How reassessment works](#how-reassessment-works) · 7. [Model and metrics](#model-and-metrics) · 8. [For teachers](#for-teachers) · [Practise your own question](#practise-your-own-question-optional-ai-drafting) · [Show solution](#show-solution-every-problem) · 9. [Screenshots](#screenshots) · 10. [Setup on Windows](#setup-on-windows) · 11. [API](#api) · 12. [Repo layout](#repo-layout) · 13. [Deployment](#deployment) · 14. [Limitations](#limitations-read-this)
 
 ---
 
@@ -256,6 +256,14 @@ Teachers get the same drafting on `/teach` ("Just type your question"): the draf
 
 **Off by default.** With `LLM_*` unset nothing changes: no new UI, `/health` and every other response are identical.
 
+## Show solution (every problem)
+
+Every problem - built-in or "Practise your own question" - has a **Show solution** button next to "Get a hint". The first click asks "Try a hint first?" ([Get a hint] [Show it anyway]); after all tests pass the solution appears automatically under "Compare with our solution". Revealing is logged (`solution_revealed`) and never changes mastery.
+
+- **The code is always the verified reference** - the built-in reference, or the sandbox-checked reference of a custom / AI-drafted problem - and the panel says "Solution checked by running the tests" with the pass count. No LLM ever writes solution code here.
+- **The explanation** has four parts: *In short*, *Step by step* (3-6 steps), *Key idea* and *Watch out for* (the misconception most linked to the problem, from the lesson content). If the learner's last attempt was wrong and the fixer found a verified minimal fix, *Your code, fixed* shows it with the changed lines highlighted.
+- **Explanations may be AI-written; solutions are always verified.** With `LLM_*` set, the same provider writes the explanation (one JSON reply, 15 s timeout, problem and code passed as data in `<problem>` / `<code>` tags). The reply is rejected - and a built-in explanation used instead - if it is not valid JSON, is too long (> 3 sentences per field or > 120 words), contains a code block or a function, or quotes any code that is not in the verified solution. Each explanation is cached per problem + solution, so the LLM is asked at most once. Without `LLM_*` the built-in explanation is generated from the solution's syntax tree ("Start `total` at `0`", "Loop over each `x` in `nums`", ...) and the lesson content; the button always works.
+
 ## Screenshots
 
 **Twin pairs - same symptom, different cause, correctly separated**
@@ -405,7 +413,8 @@ All changes are additive; existing fields keep their meaning.
 | `GET /custom/draft/status` | `{available, model}` - is the optional drafting LLM configured (never the key) |
 | `POST /custom/practice {statement, learner_id?}` | learner's own question -> saved, sandbox-checked problem: id, statement, starter, ONE example, assumptions, badge - **no reference solution** |
 | `POST /custom/draft {statement}` | teacher review: the draft with sandbox-computed expected values (not saved) |
-| `GET /custom/problems/{id}/solution?learner_id=` | reveal a custom problem's verified solution + one-line note (logged) |
+| `GET /problems/{id}/solution?learner_id=` | any problem: `{solution, explanation: {summary, steps[], key_idea, common_mistake}, source: ai\|builtin, verified, your_fix?}` (logged; mastery unchanged) |
+| `GET /custom/problems/{id}/solution?learner_id=` | alias for custom problems (adds the older `reference_solution` / `note` fields) |
 | `GET /glossary`, `GET /metrics`, `GET /metrics/confusion-matrix`, `GET /health` | tooltips, evaluation data, health |
 
 Limits: code ≤ 20,000 characters; questions ≤ 2,000; per-minute rate limits (hint 10, diagnose 30, intervene 30, custom 5, draft 5, practice 5, solution 20) per IP and per learner.

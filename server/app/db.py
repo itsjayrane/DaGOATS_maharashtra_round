@@ -37,6 +37,8 @@ def init():
         CREATE INDEX IF NOT EXISTS ix_evidence ON transfer_evidence(learner_id, misconception, ts);
         CREATE TABLE IF NOT EXISTS solution_events(id INTEGER PRIMARY KEY AUTOINCREMENT, ts REAL, learner_id TEXT, problem_id TEXT,
             event TEXT);
+        CREATE TABLE IF NOT EXISTS solution_explanations(problem_id TEXT, ref_hash TEXT, source TEXT, explanation TEXT, created REAL,
+            PRIMARY KEY(problem_id, ref_hash));
         CREATE TABLE IF NOT EXISTS probe_events(id INTEGER PRIMARY KEY AUTOINCREMENT, ts REAL, learner_id TEXT, problem_id TEXT,
             probe_id TEXT, choice INTEGER, correct INTEGER, implies TEXT);
         """)
@@ -100,6 +102,26 @@ def log_solution(lid, problem_id, event="solution_revealed"):
 def solution_events(problem_id):
     with conn() as c:
         return [dict(r) for r in c.execute("SELECT * FROM solution_events WHERE problem_id=? ORDER BY id", (problem_id,))]
+
+
+def get_solution_explanation(problem_id, ref_hash):
+    with conn() as c:
+        r = c.execute("SELECT source, explanation FROM solution_explanations WHERE problem_id=? AND ref_hash=?", (problem_id, ref_hash)).fetchone()
+    return dict(source=r["source"], explanation=json.loads(r["explanation"])) if r else None
+
+
+def set_solution_explanation(problem_id, ref_hash, explanation, source):
+    with _lock, conn() as c:
+        c.execute("INSERT OR REPLACE INTO solution_explanations(problem_id, ref_hash, source, explanation, created) VALUES(?,?,?,?,?)",
+                  (problem_id, ref_hash, source, json.dumps(explanation), time.time()))
+
+
+def last_attempt(lid, problem_id):
+    """The learner's most recent diagnosed submission on this problem (or None)."""
+    with conn() as c:
+        r = c.execute("SELECT label, passed, code FROM attempts WHERE learner_id=? AND problem_id=? AND kind='diagnose' ORDER BY id DESC LIMIT 1",
+                      (lid, problem_id)).fetchone()
+    return dict(label=r["label"], passed=bool(r["passed"]), code=r["code"]) if r else None
 
 
 def probes_seen(lid):

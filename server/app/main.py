@@ -14,7 +14,7 @@ from . import artifacts, envfile
 ENV_LOADED = envfile.load()  # server/.env if present (gitignored); never overrides real environment variables
 artifacts.check()  # before anything reads content/ or ml/artifacts: one clear error listing every missing file
 
-from . import bkt, concept, custom, db, draft, explain, hint, insights, ratelimit, sandbox
+from . import bkt, concept, custom, db, draft, explain, hint, insights, ratelimit, sandbox, solution
 from .diagnoser import DiagnoserService
 from relearn_ml import fixer, references
 from .paths import CONTENT, DOCS
@@ -503,13 +503,29 @@ def practise_own_question(body: PracticeIn, request: Request):
     return dict(public_problem(p), statement=p["prompt"], assumptions=info["assumptions"], attempts=info["attempts"])
 
 
+@app.get("/problems/{problem_id}/solution")
+def problem_solution(problem_id: str, request: Request, learner_id: Optional[str] = None):
+    """The VERIFIED reference solution of any problem + a plain-English explanation (AI-written only if LLM_* is set and
+    its reply passes the checks; otherwise built-in). Logged as solution_revealed; never changes mastery."""
+    ratelimit.check(request, "solution", learner_id)
+    p = get_problem(problem_id)
+    code = refs_for(p)[0]
+    res = sandbox.run(code, p)
+    ok = sum(t["ok"] for t in res.get("tests", [])) if res["status"] == "ok" else 0
+    exp, source = solution.explanation(p, code, MISC)
+    db.log_solution(learner_id, p["id"])
+    out = dict(problem_id=p["id"], solution=code, explanation=exp, source=source, verified=dict(passed=ok, total=len(p["tests"])))
+    fix = solution.your_fix(p, learner_id, sandbox.run)
+    if fix:
+        out["your_fix"] = fix
+    return out
+
+
 @app.get("/custom/problems/{problem_id}/solution")
 def custom_solution(problem_id: str, request: Request, learner_id: Optional[str] = None):
-    """Reveal the verified reference solution of a custom problem (logged as solution_revealed)."""
-    ratelimit.check(request, "solution", learner_id)
+    """Alias of GET /problems/{id}/solution for custom problems (keeps the older reference_solution / note fields)."""
     p = get_problem(problem_id)
     if not p.get("custom"):
         raise HTTPException(404, "Solutions are only available for custom problems.")
-    db.log_solution(learner_id, p["id"])
-    return dict(problem_id=p["id"], reference_solution=p["reference"], note=draft.approach_note(p["reference"], len(p["tests"])),
-                verified=dict(passed=len(p["tests"]), total=len(p["tests"])))
+    out = problem_solution(problem_id, request, learner_id)
+    return dict(out, reference_solution=out["solution"], note=draft.approach_note(out["solution"], len(p["tests"])))

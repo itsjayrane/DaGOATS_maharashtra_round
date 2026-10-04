@@ -100,7 +100,7 @@ def _is_reasoning_model(model):
     return "gpt-oss" in model.lower()
 
 
-def _call(messages, post, timeout, attempt=1):
+def _call(messages, post, timeout, attempt=1, max_tokens=None, purpose="draft"):
     """One chat completion. Logs status / error class / provider error type+code / elapsed ms / attempt - never the key,
     the Authorization header or a response body. Raises HTTPException(502) with a generic message on failure."""
     base, model, key = config()
@@ -108,9 +108,9 @@ def _call(messages, post, timeout, attempt=1):
                "User-Agent": USER_AGENT}  # Cloudflare (in front of Groq) blocks the default Python-urllib agent
     if key:
         headers["Authorization"] = f"Bearer {key}"
-    payload = dict(model=model, messages=messages, temperature=0.2, max_tokens=2000)
+    payload = dict(model=model, messages=messages, temperature=0.2, max_tokens=max_tokens or 2000)
     if _is_reasoning_model(model):  # gpt-oss spends tokens on reasoning first: more room, less reasoning
-        payload.update(max_tokens=4000, reasoning_effort="low")
+        payload.update(max_tokens=max_tokens or 4000, reasoning_effort="low")
     deadline = time.monotonic() + timeout
     while True:
         t0 = time.monotonic()
@@ -120,29 +120,29 @@ def _call(messages, post, timeout, attempt=1):
         except urllib.error.HTTPError as e:
             etype, ecode = _provider_error_fields(e)
             ms = round((time.monotonic() - t0) * 1000)
-            log.warning("draft: attempt %d HTTP %s (%s) type=%s code=%s %d ms", attempt, e.code, type(e).__name__, etype, ecode, ms)
+            log.warning("%s: attempt %d HTTP %s (%s) type=%s code=%s %d ms", purpose, attempt, e.code, type(e).__name__, etype, ecode, ms)
             if e.code == 400 and "reasoning_effort" in payload and deadline - time.monotonic() > MIN_CALL_S:
                 payload = {k: v for k, v in payload.items() if k != "reasoning_effort"}  # unsupported here: retry once without
-                log.warning("draft: attempt %d retrying without reasoning_effort", attempt)
+                log.warning("%s: attempt %d retrying without reasoning_effort", purpose, attempt)
                 continue
             raise HTTPException(502, MSG_RATE if e.code == 429 else MSG_DOWN) from None
         except Exception as e:  # noqa: BLE001 - timeouts, DNS, TLS, bad JSON...: one generic message, no raw text
             ms = round((time.monotonic() - t0) * 1000)
-            log.warning("draft: attempt %d failed (%s) %d ms", attempt, type(e).__name__, ms)
+            log.warning("%s: attempt %d failed (%s) %d ms", purpose, attempt, type(e).__name__, ms)
             raise HTTPException(502, MSG_DOWN) from None
-    log.info("draft: attempt %d HTTP 200 %d ms", attempt, round((time.monotonic() - t0) * 1000))
+    log.info("%s: attempt %d HTTP 200 %d ms", purpose, attempt, round((time.monotonic() - t0) * 1000))
     try:
         message = data["choices"][0]["message"]
     except (KeyError, IndexError, TypeError):
-        log.warning("draft: attempt %d reply had no choices[0].message", attempt)
+        log.warning("%s: attempt %d reply had no choices[0].message", purpose, attempt)
         raise HTTPException(502, MSG_DOWN) from None
     # an empty answer (e.g. a reasoning model that used its whole budget thinking) is a parse failure -> repair round
     return (message.get("content") if isinstance(message, dict) else None) or ""
 
 
-def first_json_object(text):
+def first_json_object(text, strip_fences=True):
     """The first balanced {...} in text (code fences and chatter around it are ignored); None if there is none."""
-    text = re.sub(r"```[a-zA-Z]*", "", text or "")
+    text = re.sub(r"```[a-zA-Z]*", "", text or "") if strip_fences else (text or "")
     start = text.find("{")
     while start != -1:
         depth, in_str, esc = 0, False, False

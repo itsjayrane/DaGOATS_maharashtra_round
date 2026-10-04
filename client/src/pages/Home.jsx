@@ -7,7 +7,8 @@ import ExplainPanel from '../components/ExplainPanel'
 import HintPanel, { MAX_HINTS } from '../components/HintPanel'
 import InterventionPanel from '../components/InterventionPanel'
 import Onboarding from '../components/Onboarding'
-import { OwnQuestionCard, SolutionReveal } from '../components/OwnQuestion'
+import { OwnQuestionCard } from '../components/OwnQuestion'
+import SolutionPanel from '../components/SolutionPanel'
 import QuickCheck from '../components/QuickCheck'
 import StepIndicator from '../components/StepIndicator'
 import TransferPanel from '../components/TransferPanel'
@@ -31,6 +32,7 @@ export default function Home() {
   const showDemo = params.get('demo') === '1' // demo-bug panel is hidden unless the URL has ?demo=1
   const [onboard, setOnboard] = useState(() => !flag('onboarded'))
   const [ownAvailable, setOwnAvailable] = useState(false) // optional AI drafting is configured on the server
+  const [solStage, setSolStage] = useState('hidden') // 'Show solution': hidden -> ask (hint first?) -> open
   const [problems, setProblems] = useState([])
   const [pid, setPid] = useState('sum_list')
   const [code, setCode] = useState('')
@@ -87,7 +89,7 @@ export default function Home() {
   const recommended = problems.find((p) => p.id === suggested?.problem_id && p.id !== pid)
     || problems.find((p) => !solved.includes(p.id) && p.id !== pid && !p.custom)
   const resetHints = () => { setHints([]); setHintError(''); setHintNote('') }
-  const reset = () => { setDiag(null); setProving(false); setError(''); setOverride(null) }
+  const reset = () => { setDiag(null); setProving(false); setError(''); setOverride(null); setSolStage('hidden') }
 
   const pick = (id) => {
     const p = problems.find((x) => x.id === id)
@@ -136,6 +138,7 @@ export default function Home() {
   const twinClose = diagnosed && diag.runner_up && TWIN_OF[diagnosed] === diag.runner_up.label && (diag.ambiguous || diag.runner_up.probability >= TWIN_PROBE_MIN)
   const unknownBug = diag?.verdict === 'unknown' && diag?.status === 'ok' && diag?.label
   const correct = diag && (diag.verdict ? diag.verdict === 'correct' : diag.label === 'CORRECT')
+  const passedHere = !!correct && submitted?.pid === pid // all tests passed on this problem: show the solution to compare
   const step = proving ? 3 : misconception || unknownBug ? 2 : diag ? 1 : 0
 
   return (
@@ -193,11 +196,15 @@ export default function Home() {
             <Button variant="ghost" onClick={askHint} disabled={!healthy || hintBusy || hints.length >= MAX_HINTS || !pid}>
               {hintBusy ? 'Thinking…' : hints.length >= MAX_HINTS ? 'No more hints' : hints.length === 0 ? 'Get a hint' : 'Next hint'}
             </Button>
+            <Button variant="ghost" onClick={() => setSolStage((s) => (s === 'hidden' ? 'ask' : s))} disabled={!healthy || !pid || solStage === 'open' || passedHere}>
+              Show solution
+            </Button>
             <Button onClick={submit} disabled={!healthy || busy || !pid}>{!healthy ? 'Waiting for server…' : busy ? 'Checking…' : 'Check my code'}</Button>
           </div>
         </div>
         <HintPanel hints={hints} loading={hintBusy} note={hintNote} error={hintError} />
-        <SolutionReveal key={pid} problem={problem} learnerId={lid} passed={!!correct && submitted?.pid === pid} onHint={askHint} />
+        <SolutionPanel key={`${pid}:${passedHere ? 'compare' : 'reveal'}`} problemId={pid} learnerId={lid} compare={passedHere}
+          stage={passedHere ? 'open' : solStage} onHint={() => { setSolStage('hidden'); askHint() }} onShow={() => setSolStage('open')} />
         <div className="mt-3"><ErrorNote error={error} /></div>
       </Card>
 

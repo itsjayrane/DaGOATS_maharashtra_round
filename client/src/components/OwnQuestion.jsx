@@ -1,6 +1,6 @@
 import { useState } from 'react'
 import { api } from '../api'
-import { Button, Card, CodeView, ErrorNote, Pill } from './ui'
+import { Button, Card, ErrorNote, Pill } from './ui'
 import { py } from '../labels'
 
 const MIN = 10
@@ -45,47 +45,5 @@ export function OwnQuestionCard({ learnerId, healthy, onCreated }) {
         </div>
       )}
     </Card>
-  )
-}
-
-// Reveal the verified solution of an AI-drafted problem: on request (after offering a hint first) or after passing.
-export function SolutionReveal({ problem, learnerId, passed, onHint }) {
-  const [stage, setStage] = useState('hidden') // hidden -> ask -> shown
-  const [sol, setSol] = useState(null)
-  const [error, setError] = useState('')
-  const load = async () => {
-    setError('')
-    try { setSol(await api.getSolution(problem.id, learnerId)); setStage('shown') } catch (e) { setError(e.message) }
-  }
-  if (problem?.source !== 'ai_draft') return null
-  if (stage === 'shown' && sol) {
-    return (
-      <div className="mt-4" data-testid="solution">
-        <CodeView code={sol.reference_solution} tone="good" label={passed ? 'Compare with our solution' : 'Our solution'} caption={sol.note} />
-      </div>
-    )
-  }
-  if (passed) {
-    return (
-      <div className="mt-4">
-        <Button variant="ghost" onClick={load}>Compare with our solution</Button>
-        <ErrorNote error={error} />
-      </div>
-    )
-  }
-  return (
-    <div className="mt-4">
-      {stage === 'hidden' && <Button variant="ghost" onClick={() => setStage('ask')}>Show solution</Button>}
-      {stage === 'ask' && (
-        <div className="rounded-lg border border-line bg-raised p-3" role="group" aria-label="Show the solution?">
-          <p className="text-sm">Try a hint first? Working it out yourself helps it stick.</p>
-          <div className="mt-2 flex flex-wrap gap-2">
-            <Button onClick={() => { setStage('hidden'); onHint() }}>Get a hint</Button>
-            <Button variant="ghost" onClick={load}>Show it anyway</Button>
-          </div>
-        </div>
-      )}
-      <div className="mt-2"><ErrorNote error={error} /></div>
-    </div>
   )
 }

@@ -45,7 +45,7 @@ export const api = {
   draftStatus: () => req('/custom/draft/status'),
   draftCustom: (statement) => req('/custom/draft', { method: 'POST', body: { statement } }),
   practiceOwn: (statement, lid) => req('/custom/practice', { method: 'POST', body: { statement, learner_id: lid } }),
-  getSolution: (id, lid) => req(`/custom/problems/${encodeURIComponent(id)}/solution${lid ? `?learner_id=${encodeURIComponent(lid)}` : ''}`),
+  getSolution: (id, lid) => req(`/problems/${encodeURIComponent(id)}/solution${lid ? `?learner_id=${encodeURIComponent(lid)}` : ''}`),
   metrics: () => req('/metrics'),
   hint: (body) => req('/hint', { method: 'POST', body }),
   confusionUrl: () => `${API}/metrics/confusion-matrix`,
