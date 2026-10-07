@@ -1,4 +1,5 @@
 import { NavLink, Route, Routes } from 'react-router-dom'
+import { Analytics } from '@vercel/analytics/react'
 import Dashboard from './pages/Dashboard'
 import Eval from './pages/Eval'
 import Home from './pages/Home'
@@ -53,6 +54,7 @@ export default function App() {
           <Route path="*" element={<p className="text-muted">Page not found.</p>} />
         </Routes>
       </main>
+      <Analytics />
     </div>
     </ServerHealthProvider>
   )
